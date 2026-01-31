@@ -53,13 +53,13 @@
 </div>
 
 <script>
-    // 1. NGĂN CHẶN ZOOM
+    // 1. CHẶN ZOOM
     window.addEventListener('wheel', (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
     window.addEventListener('keydown', (e) => {
         if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) e.preventDefault();
     });
 
-    // 2. CONFIG FIREBASE
+    // 2. FIREBASE CONFIG
     const firebaseConfig = {
         apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
         authDomain: "sky-dodge-8f537.firebaseapp.com",
@@ -70,6 +70,11 @@
     };
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    const auth = firebase.auth();
+
+    // Biến lưu User
+    let currentUser = null;
+    auth.onAuthStateChanged(user => { if (user) currentUser = user; });
 
     // 3. BIẾN GAME & RESPONSIVE
     const paddle = document.getElementById('paddle'), numDisp = document.getElementById('num'), barDisp = document.getElementById('bar');
@@ -107,30 +112,31 @@
         }
     }, 1000);
 
-    // HÀM LƯU DỮ LIỆU CHUẨN
+    // HÀM LƯU DỮ LIỆU CHUẨN (1s = 1 Xu)
     async function saveGameData() {
-        const user = firebase.auth().currentUser;
-        if (!user) return;
+        const user = auth.currentUser || currentUser;
+        if (!user) {
+            console.error("Chưa đăng nhập!");
+            return;
+        }
 
         const coinsEarned = seconds; 
-        
+        const uid = user.uid;
+        const name = user.displayName || user.email.split('@')[0];
+
         try {
-            // Cộng xu vào ví người dùng
-            await db.ref('users/' + user.uid + '/coins').transaction((current) => (current || 0) + coinsEarned);
+            // Lưu xu
+            await db.ref('users/' + uid + '/coins').transaction(c => (c || 0) + coinsEarned);
 
-            // Cập nhật Leaderboard toàn cầu
-            const lbRef = db.ref('leaderboard/' + user.uid);
+            // Lưu bảng xếp hạng toàn cầu
+            const lbRef = db.ref('leaderboard/' + uid);
             const snap = await lbRef.once('value');
-            const oldRecord = snap.val()?.score || 0;
-
-            if (seconds > oldRecord) {
-                await lbRef.set({ 
-                    name: user.displayName || user.email.split('@')[0], 
-                    score: seconds 
-                });
+            if (seconds > (snap.val()?.score || 0)) {
+                await lbRef.update({ name: name, score: seconds });
             }
             document.getElementById('coin-stats').innerText = `+${coinsEarned} Xu đã nhận!`;
-        } catch (e) { console.error(e); }
+            console.log("Dữ liệu đã được đồng bộ!");
+        } catch (e) { console.error("Lỗi lưu:", e); }
     }
 
     function createItem() {
@@ -160,7 +166,7 @@
                     gameOver = true;
                     msg.style.display = 'block';
                     document.getElementById('final-stats').innerText = `Trụ được: ${seconds}s`;
-                    saveGameData(); // Kích hoạt lưu
+                    saveGameData(); 
                 }
                 clearInterval(fallInterval); item.remove();
             }
