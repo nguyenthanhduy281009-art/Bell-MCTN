@@ -2,34 +2,127 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Sky Dodge - Home</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sky Dodge - Trang chủ</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <style>
-        body { font-family: sans-serif; margin: 0; background: #fff; height: 100vh; display: flex; flex-direction: column; }
-        
-        /* Header: Tên game và nút Đăng xuất */
-        .header { display: flex; justify-content: space-between; padding: 20px 40px; align-items: flex-start; }
-        .logo { color: #8BC34A; font-size: 32px; font-weight: bold; margin: 0; }
-        .logout-btn { background: none; border: none; font-size: 16px; cursor: pointer; color: #000; }
+        :root {
+            --primary-gradient: linear-gradient(135deg, #8BC34A, #2196F3);
+            --bg-color: #f8f9fa;
+        }
 
-        /* Thông tin người dùng */
-        .user-info { padding: 0 40px; margin-top: -10px; }
-        .user-info p { margin: 5px 0; font-size: 18px; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            background: var(--bg-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: #333;
+        }
 
-        /* Nút Bắt đầu chơi ở giữa */
-        .main-action { flex: 1; display: flex; justify-content: center; align-items: center; }
-        .play-btn { background: none; border: none; font-size: 40px; font-weight: 900; cursor: pointer; transition: 0.2s; }
-        .play-btn:hover { transform: scale(1.1); }
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            padding: 25px 40px;
+            align-items: center;
+        }
 
-        /* Menu dưới cùng */
-        .footer-menu { display: flex; justify-content: space-around; padding: 40px; border-top: 1px solid #eee; }
-        .menu-item { background: none; border: none; font-size: 24px; font-weight: bold; cursor: pointer; }
+        .logo {
+            font-size: 36px;
+            font-weight: 900;
+            margin: 0;
+            background: linear-gradient(to right, #8BC34A, #4CAF50);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 2px;
+        }
+
+        .logout-btn {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: 0.3s;
+        }
+
+        .logout-btn:hover { background: #ffeded; color: #f44336; border-color: #f44336; }
+
+        /* User Info */
+        .user-info { padding: 0 40px; }
+        .user-info p { margin: 5px 0; font-size: 18px; color: #555; }
+        .user-info b { color: #2196F3; }
+
+        /* Main Content */
+        .main-action {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .play-btn {
+            background: var(--primary-gradient);
+            color: white;
+            border: none;
+            padding: 18px 50px;
+            font-size: 28px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(139, 195, 74, 0.3);
+            transition: 0.3s;
+            text-transform: uppercase;
+        }
+
+        .play-btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 25px rgba(33, 150, 243, 0.4);
+        }
+
+        /* Footer Menu */
+        .footer-menu {
+            display: flex;
+            justify-content: space-around;
+            padding: 25px;
+            background: white;
+            border-radius: 30px 30px 0 0;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.05);
+        }
+
+        .menu-item {
+            background: none;
+            border: none;
+            font-size: 18px;
+            font-weight: 700;
+            color: #444;
+            cursor: pointer;
+            padding: 10px;
+            transition: 0.3s;
+        }
+
+        .menu-item:hover { color: #8BC34A; }
+
+        #loading {
+            position: fixed;
+            inset: 0;
+            background: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
 
-<div id="loading" style="text-align: center; margin-top: 100px;">Đang tải dữ liệu...</div>
+<div id="loading">ĐANG TẢI DỮ LIỆU...</div>
 
 <div id="main-content" style="display: none; height: 100vh; flex-direction: column;">
     <div class="header">
@@ -38,8 +131,8 @@
     </div>
 
     <div class="user-info">
-        <p>Chào mừng chiến binh: <span id="user-name" style="font-weight: bold;">[Tên người dùng]</span></p>
-        <p><strong>Số xu: 0</strong></p>
+        <p>Chào mừng chiến binh: <b id="user-name">...</b></p>
+        <p>Số xu: <b id="user-coins">0</b></p>
     </div>
 
     <div class="main-action">
@@ -47,9 +140,9 @@
     </div>
 
     <div class="footer-menu">
-        <button class="menu-item" onclick="alert('Tính năng Bạn bè đang phát triển')">Bạn bè</button>
-        <button class="menu-item" onclick="alert('Cửa hàng sẽ mở sớm')">Cửa hàng</button>
-        <button class="menu-item" onclick="alert('Bảng xếp hạng đang cập nhật')">Bảng xếp hạng</button>
+        <button class="menu-item">Bạn bè</button>
+        <button class="menu-item">Cửa hàng</button>
+        <button class="menu-item">Bảng xếp hạng</button>
     </div>
 </div>
 
@@ -69,7 +162,7 @@
         if (user) {
             document.getElementById('loading').style.display = 'none';
             document.getElementById('main-content').style.display = 'flex';
-            document.getElementById('user-name').innerText = user.displayName || "Chiến binh";
+            document.getElementById('user-name').innerText = user.displayName || user.email.split('@')[0];
         } else {
             window.location.href = "auth.html";
         }
