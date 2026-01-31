@@ -1,16 +1,76 @@
-const db = firebase.database();
-const lbRef = db.ref('leaderboard').orderByChild('score').limitToLast(10);
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Bảng xếp hạng - SKY DODGE</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f8f9fa; text-align: center; padding: 20px; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        h1 { color: #8BC34A; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: center; }
+        th { background: #8BC34A; color: white; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .back-btn { margin-top: 20px; padding: 10px 25px; background: #2196F3; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
 
-lbRef.on('value', (snapshot) => {
-    const list = [];
-    snapshot.forEach((child) => {
-        list.push(child.val());
-    });
-    list.reverse(); // Đảo ngược để người cao điểm nhất lên đầu
+<div class="container">
+    <h1>TOP 10 CAO THỦ</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Hạng</th>
+                <th>Tên</th>
+                <th>Thời gian (s)</th>
+            </tr>
+        </thead>
+        <tbody id="leaderboard-table">
+            </tbody>
+    </table>
+    <button class="back-btn" onclick="location.href='index.html'">Quay lại</button>
+</div>
 
-    let html = '<tr><th>Hạng</th><th>Tên</th><th>Thời gian (s)</th></tr>';
-    list.forEach((user, index) => {
-        html += `<tr><td>${index + 1}</td><td>${user.name}</td><td>${user.score}</td></tr>`;
+<script>
+    // Dán config của Duy vào đây
+    const firebaseConfig = {
+        apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
+        authDomain: "sky-dodge-8f537.firebaseapp.com",
+        projectId: "sky-dodge-8f537",
+        storageBucket: "sky-dodge-8f537.firebasestorage.app",
+        messagingSenderId: "169224412363",
+        appId: "1:169224412363:web:de0d018158d8b34e854f4e"
+    };
+
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Lấy top 10 người điểm cao nhất
+    const lbRef = db.ref('leaderboard').orderByChild('score').limitToLast(10);
+
+    lbRef.on('value', (snapshot) => {
+        const list = [];
+        snapshot.forEach((child) => {
+            list.push(child.val());
+        });
+        
+        list.reverse(); // Đảo ngược để hạng 1 lên đầu
+
+        let html = '';
+        list.forEach((user, index) => {
+            // Sửa lỗi dính chữ bằng cách bọc vào thẻ <tr> và <td>
+            html += `<tr>
+                <td><b>${index + 1}</b></td>
+                <td>${user.name || "Ẩn danh"}</td>
+                <td>${user.score}s</td>
+            </tr>`;
+        });
+        
+        document.getElementById('leaderboard-table').innerHTML = html;
     });
-    document.getElementById('leaderboard-table').innerHTML = html;
-});
+</script>
+</body>
+</html>
