@@ -5,27 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SKY DODGE - Bảng Xếp Hạng</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 20px; text-align: center; }
-        .container { max-width: 500px; margin: auto; background: #2c3e50; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        h1 { color: #8BC34A; text-transform: uppercase; letter-spacing: 2px; }
+        .container { max-width: 500px; margin: auto; background: #2c3e50; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 2px solid #8BC34A; }
+        h1 { color: #8BC34A; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(139, 195, 74, 0.3); }
         
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th { border-bottom: 2px solid #8BC34A; padding: 10px; color: #8BC34A; }
         td { padding: 15px; border-bottom: 1px solid #3e4f5f; }
         
         /* Hiệu ứng Top 3 */
-        .rank-1 { color: #FFD700; font-weight: bold; font-size: 20px; } /* Vàng */
-        .rank-2 { color: #C0C0C0; font-weight: bold; } /* Bạc */
-        .rank-3 { color: #CD7F32; font-weight: bold; } /* Đồng */
+        .rank-1 { color: #FFD700; font-weight: bold; font-size: 22px; }
+        .rank-2 { color: #C0C0C0; font-weight: bold; font-size: 18px; }
+        .rank-3 { color: #CD7F32; font-weight: bold; }
 
         .back-btn {
             margin-top: 25px; padding: 12px 30px; background: #8BC34A;
             color: white; border: none; border-radius: 50px; cursor: pointer;
-            font-weight: bold; transition: 0.3s;
+            font-weight: bold; transition: 0.3s; width: 100%;
         }
-        .back-btn:hover { background: #689f38; transform: scale(1.05); }
+        .back-btn:hover { background: #689f38; transform: scale(1.02); }
     </style>
 </head>
 <body>
@@ -41,7 +42,8 @@
             </tr>
         </thead>
         <tbody id="leaderboard-body">
-            </tbody>
+            <tr><td colspan="3">Đang tải dữ liệu...</td></tr>
+        </tbody>
     </table>
     <button class="back-btn" onclick="location.href='index.html'">QUAY LẠI</button>
 </div>
@@ -58,32 +60,41 @@
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Lắng nghe dữ liệu BXH thời gian thực
+    // Lấy dữ liệu từ nhánh 'leaderboard'
     db.ref('leaderboard').orderByChild('score').limitToLast(10).on('value', (snapshot) => {
         let list = [];
         snapshot.forEach(child => {
             list.push(child.val());
         });
         
-        // Đảo ngược để người cao nhất lên đầu
-        list.reverse();
+        // Sắp xếp giảm dần (vì limitToLast lấy từ thấp lên cao)
+        list.sort((a, b) => b.score - a.score);
 
         let html = '';
-        list.forEach((user, index) => {
-            let rankClass = '';
-            if (index === 0) rankClass = 'rank-1';
-            else if (index === 1) rankClass = 'rank-2';
-            else if (index === 2) rankClass = 'rank-3';
+        if (list.length === 0) {
+            html = '<tr><td colspan="3">Chưa có dữ liệu</td></tr>';
+        } else {
+            list.forEach((user, index) => {
+                let rankClass = '';
+                let rankDisplay = index + 1;
+                
+                if (index === 0) { rankClass = 'rank-1'; rankDisplay = '🥇'; }
+                else if (index === 1) { rankClass = 'rank-2'; rankDisplay = '🥈'; }
+                else if (index === 2) { rankClass = 'rank-3'; rankDisplay = '🥉'; }
 
-            html += `
-                <tr class="${rankClass}">
-                    <td>${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}</td>
-                    <td>${user.name || "Ẩn danh"}</td>
-                    <td>${user.score}s</td>
-                </tr>
-            `;
-        });
-        document.getElementById('leaderboard-body').innerHTML = html || '<tr><td colspan="3">Chưa có dữ liệu</td></tr>';
+                html += `
+                    <tr class="${rankClass}">
+                        <td>${rankDisplay}</td>
+                        <td>${user.name || "Ẩn danh"}</td>
+                        <td>${user.score}</td>
+                    </tr>
+                `;
+            });
+        }
+        document.getElementById('leaderboard-body').innerHTML = html;
+    }, (error) => {
+        console.error(error);
+        document.getElementById('leaderboard-body').innerHTML = '<tr><td colspan="3">Lỗi tải dữ liệu</td></tr>';
     });
 </script>
 </body>
