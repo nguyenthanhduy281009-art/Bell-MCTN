@@ -119,14 +119,26 @@
     }
 
     firebase.auth().onAuthStateChanged(user => {
-        if (user) {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('main-content').style.display = 'flex';
-            document.getElementById('user-name').innerText = user.displayName || "Người chơi";
-        } else {
-            window.location.href = "auth.html";
-        }
-    });
+    if (user) {
+        // 1. Hiện màn hình chính, ẩn loading
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('main-content').style.display = 'flex';
+        
+        // 2. Hiển thị tên người dùng
+        document.getElementById('user-name').innerText = user.displayName || "Chiến binh";
+
+        // 3. THÊM VÀO ĐÂY: Lấy số xu từ Realtime Database
+        const db = firebase.database();
+        db.ref('users/' + user.uid + '/coins').on('value', (snapshot) => {
+            const coins = snapshot.val() || 0; // Nếu chưa có xu nào thì hiện số 0
+            document.getElementById('user-coins').innerText = coins;
+        });
+
+    } else {
+        // Nếu chưa đăng nhập thì đẩy về trang auth
+        window.location.href = "auth.html";
+    }
+});
 
     function logout() {
         firebase.auth().signOut().then(() => window.location.href = "auth.html");
