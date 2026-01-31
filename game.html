@@ -107,18 +107,40 @@
         }
     }, 1000);
 
-    async function saveGameData() {
-        const user = firebase.auth().currentUser;
-        if (!user) return;
-        const coinsEarned = Math.floor(score / 10);
-        await db.ref('users/' + user.uid + '/coins').transaction(c => (c || 0) + coinsEarned);
+   async function saveGameData() {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+
+    // 1. SỐ XU BẰNG SỐ GIÂY CHƠI (seconds là biến đếm thời gian của Duy)
+    const coinsEarned = seconds; 
+    
+    try {
+        // 2. CỘNG DỒN XU VÀO TỔNG SỐ DƯ
+        const userCoinsRef = db.ref('users/' + user.uid + '/coins');
+        await userCoinsRef.transaction((currentValue) => {
+            return (currentValue || 0) + coinsEarned;
+        });
+
+        // 3. CẬP NHẬT BẢNG XẾP HẠNG (Chỉ cập nhật nếu phá kỷ lục giây cũ)
         const lbRef = db.ref('leaderboard/' + user.uid);
         const snap = await lbRef.once('value');
-        if (seconds > (snap.val()?.score || 0)) {
-            await lbRef.set({ name: user.displayName || user.email.split('@')[0], score: seconds });
+        const oldRecord = snap.val()?.score || 0;
+
+        if (seconds > oldRecord) {
+            await lbRef.set({ 
+                name: user.displayName || user.email.split('@')[0], 
+                score: seconds 
+            });
+            console.log("Đã phá kỷ lục mới!");
         }
-        document.getElementById('coin-stats').innerText = `+${coinsEarned} Xu nhận được!`;
+
+        // Hiển thị thông báo kết quả
+        document.getElementById('coin-stats').innerText = `Bạn nhận được ${coinsEarned} Xu!`;
+        
+    } catch (error) {
+        console.error("Lỗi lưu dữ liệu:", error);
     }
+}
 
     function createItem() {
         if (gameOver) return;
