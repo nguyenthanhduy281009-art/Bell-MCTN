@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sky Dodge - Play</title>
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        canvas { background: #1a1a1a; display: block; }
+        
+        /* Chữ GO tự động xuất hiện rồi biến mất */
+        #go-overlay {
+            position: absolute; inset: 0;
+            display: flex; justify-content: center; align-items: center;
+            z-index: 10; pointer-events: none; /* Không chặn click chuột */
+        }
+        #go-text {
+            font-family: 'Arial Black', sans-serif;
+            font-size: 150px; color: #8BC34A;
+            text-shadow: 0 0 40px rgba(139, 195, 74, 0.8);
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.5s ease-out;
+        }
+        /* Hiệu ứng hiện ra */
+        .show-go { opacity: 1 !important; transform: scale(1.2) !important; }
+    </style>
+</head>
+<body>
+
+    <div id="go-overlay">
+        <div id="go-text">GO!</div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const goText = document.getElementById('go-text');
+        let gameActive = false;
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // XỬ LÝ TỰ ĐỘNG HIỆN CHỮ GO
+        window.onload = () => {
+            setTimeout(() => {
+                goText.classList.add('show-go'); // Hiện chữ GO
+                
+                setTimeout(() => {
+                    goText.style.opacity = '0'; // Mờ dần
+                    gameActive = true; // Bắt đầu game
+                    console.log("Game Start!");
+                }, 1000); // Sau 1 giây hiện thì biến mất
+            }, 200); // Đợi 0.2s sau khi load trang cho mượt
+        };
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (gameActive) {
+                // Vẽ máy bay tạm thời (Duy sẽ viết logic di chuyển ở đây)
+                ctx.fillStyle = "#4CAF50";
+                ctx.fillRect(canvas.width/2 - 25, canvas.height - 100, 50, 50);
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
