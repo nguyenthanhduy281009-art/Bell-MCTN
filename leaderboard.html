@@ -2,40 +2,51 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Bảng xếp hạng - SKY DODGE</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SKY DODGE - Bảng Xếp Hạng</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f8f9fa; text-align: center; padding: 20px; }
-        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        h1 { color: #8BC34A; }
+        body { font-family: 'Segoe UI', sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 20px; text-align: center; }
+        .container { max-width: 500px; margin: auto; background: #2c3e50; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h1 { color: #8BC34A; text-transform: uppercase; letter-spacing: 2px; }
+        
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: center; }
-        th { background: #8BC34A; color: white; }
-        tr:nth-child(even) { background: #f9f9f9; }
-        .back-btn { margin-top: 20px; padding: 10px 25px; background: #2196F3; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; }
+        th { border-bottom: 2px solid #8BC34A; padding: 10px; color: #8BC34A; }
+        td { padding: 15px; border-bottom: 1px solid #3e4f5f; }
+        
+        /* Hiệu ứng Top 3 */
+        .rank-1 { color: #FFD700; font-weight: bold; font-size: 20px; } /* Vàng */
+        .rank-2 { color: #C0C0C0; font-weight: bold; } /* Bạc */
+        .rank-3 { color: #CD7F32; font-weight: bold; } /* Đồng */
+
+        .back-btn {
+            margin-top: 25px; padding: 12px 30px; background: #8BC34A;
+            color: white; border: none; border-radius: 50px; cursor: pointer;
+            font-weight: bold; transition: 0.3s;
+        }
+        .back-btn:hover { background: #689f38; transform: scale(1.05); }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>TOP 10 CAO THỦ</h1>
+    <h1>TOP 10 CHIẾN BINH</h1>
     <table>
         <thead>
             <tr>
                 <th>Hạng</th>
                 <th>Tên</th>
-                <th>Thời gian (s)</th>
+                <th>Kỷ lục (s)</th>
             </tr>
         </thead>
-        <tbody id="leaderboard-table">
+        <tbody id="leaderboard-body">
             </tbody>
     </table>
-    <button class="back-btn" onclick="location.href='index.html'">Quay lại</button>
+    <button class="back-btn" onclick="location.href='index.html'">QUAY LẠI</button>
 </div>
 
 <script>
-    // Dán config của Duy vào đây
     const firebaseConfig = {
         apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
         authDomain: "sky-dodge-8f537.firebaseapp.com",
@@ -44,32 +55,35 @@
         messagingSenderId: "169224412363",
         appId: "1:169224412363:web:de0d018158d8b34e854f4e"
     };
-
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Lấy top 10 người điểm cao nhất
-    const lbRef = db.ref('leaderboard').orderByChild('score').limitToLast(10);
-
-    lbRef.on('value', (snapshot) => {
-        const list = [];
-        snapshot.forEach((child) => {
+    // Lắng nghe dữ liệu BXH thời gian thực
+    db.ref('leaderboard').orderByChild('score').limitToLast(10).on('value', (snapshot) => {
+        let list = [];
+        snapshot.forEach(child => {
             list.push(child.val());
         });
         
-        list.reverse(); // Đảo ngược để hạng 1 lên đầu
+        // Đảo ngược để người cao nhất lên đầu
+        list.reverse();
 
         let html = '';
         list.forEach((user, index) => {
-            // Sửa lỗi dính chữ bằng cách bọc vào thẻ <tr> và <td>
-            html += `<tr>
-                <td><b>${index + 1}</b></td>
-                <td>${user.name || "Ẩn danh"}</td>
-                <td>${user.score}s</td>
-            </tr>`;
+            let rankClass = '';
+            if (index === 0) rankClass = 'rank-1';
+            else if (index === 1) rankClass = 'rank-2';
+            else if (index === 2) rankClass = 'rank-3';
+
+            html += `
+                <tr class="${rankClass}">
+                    <td>${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}</td>
+                    <td>${user.name || "Ẩn danh"}</td>
+                    <td>${user.score}s</td>
+                </tr>
+            `;
         });
-        
-        document.getElementById('leaderboard-table').innerHTML = html;
+        document.getElementById('leaderboard-body').innerHTML = html || '<tr><td colspan="3">Chưa có dữ liệu</td></tr>';
     });
 </script>
 </body>
