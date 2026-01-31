@@ -2,49 +2,36 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sky Dodge - Home</title>
+    <title>Sky Dodge - Menu</title>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
     <style>
-        body { margin: 0; background: #1a1a1a; color: white; font-family: sans-serif; text-align: center; }
-        .container { padding-top: 20vh; }
-        h1 { font-size: 50px; color: #4CAF50; margin-bottom: 5px; }
-        .menu-btn { display: block; width: 250px; margin: 20px auto; padding: 15px; background: transparent; border: 2px solid #4CAF50; color: white; text-decoration: none; border-radius: 30px; font-weight: bold; transition: 0.3s; }
-        .menu-btn:hover { background: #4CAF50; color: black; }
-        .logout { margin-top: 40px; color: #ff4d4d; cursor: pointer; border: 1px solid #ff4d4d; padding: 8px 20px; border-radius: 20px; display: inline-block; }
+        body { background: #1a1a1a; color: white; text-align: center; font-family: sans-serif; padding-top: 100px; }
+        .btn { display: inline-block; padding: 15px 40px; border: 2px solid #4CAF50; color: white; text-decoration: none; border-radius: 25px; margin: 20px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>SKY DODGE</h1>
-        <p>Xin chào, <b id="user-display">...</b></p>
-        <a href="game.html" class="menu-btn">BẮT ĐẦU CHƠI</a>
-        <div class="logout" onclick="logout()">ĐĂNG XUẤT</div>
-    </div>
-<script>
-    const firebaseConfig = {
-        apiKey: "AIzaSyBbdRGcZmqt5-ywPyssZ1C2CDoj11slDQs",
-        authDomain: "sky-dodge-8f537.firebaseapp.com",
-        projectId: "sky-dodge-8f537",
-        storageBucket: "sky-dodge-8f537.firebasestorage.app",
-        messagingSenderId: "169224412363",
-        appId: "1:169224412363:web:e7160623b367e012854f4e"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
+    <h1>SKY DODGE</h1>
+    <p>Chào mừng, <span id="user">...</span></p>
+    <a href="game.html" class="btn">CHƠI NGAY</a><br>
+    <button onclick="logout()">Đăng xuất</button>
 
-    auth.onAuthStateChanged(user => {
-        if (user) {
-            document.getElementById('user-display').innerText = user.displayName || user.email;
-        } else {
-            window.location.href = "auth.html";
-        }
-    });
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBbdRGcZmqt5-ywPyssZ1C2CDoj11slDQs",
+            authDomain: "sky-dodge-8f537.firebaseapp.com",
+            projectId: "sky-dodge-8f537",
+            appId: "1:169224412363:web:e7160623b367e012854f4e"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
 
-    function logout() {
-        auth.signOut().then(() => window.location.href = "auth.html");
-    }
-</script>
+        auth.onAuthStateChanged(user => {
+            if (user) document.getElementById('user').innerText = user.displayName || user.email;
+            else window.location.href = "auth.html";
+        });
+
+        function logout() { auth.signOut(); }
+    </script>
 </body>
 </html>
