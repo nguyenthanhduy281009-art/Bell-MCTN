@@ -17,7 +17,6 @@
         .show-btn { position: absolute; right: 10px; top: 10px; background: #333; border: none; padding: 5px; border-radius: 4px; font-size: 10px; cursor: pointer; color: #fff; }
         button.main { width: 100%; padding: 12px; background: var(--primary); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; }
         .link { margin-top: 15px; font-size: 13px; color: #4CAF50; cursor: pointer; }
-        .forgot { display: block; text-align: right; font-size: 12px; color: #888; margin-bottom: 10px; text-decoration: none; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -25,37 +24,35 @@
     <div class="brand-name">SKY DODGE</div>
     <h2 id="title">ĐĂNG NHẬP</h2>
     
-    <input type="text" id="username" placeholder="Tên trong game" style="display: none;">
+    <input type="text" id="userInput" placeholder="Tên đăng nhập hoặc Email">
     
-    <input type="email" id="email" placeholder="Email của bạn">
-    
+    <div id="reg-fields" style="display: none;">
+        <input type="email" id="emailReal" placeholder="Email (để bảo mật)">
+    </div>
+
     <div class="input-group">
         <input type="password" id="pass" placeholder="Mật khẩu">
         <button class="show-btn" onclick="togglePass()">HIỆN</button>
     </div>
 
-    <a class="forgot" id="forgotBtn" onclick="forgotPass()">Quên mật khẩu?</a>
-
     <button class="main" onclick="handleAuth()" id="btnSubmit">ĐĂNG NHẬP</button>
-    
     <div id="error" style="color: #ff4d4d; font-size: 12px; margin-top: 10px; min-height: 15px;"></div>
-    
     <div class="link" onclick="switchMode()" id="toggleTxt">Chưa có tài khoản? Đăng ký ngay</div>
 </div>
 
 <script>
 const firebaseConfig = {
-  apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
-  authDomain: "sky-dodge-8f537.firebaseapp.com",
-  projectId: "sky-dodge-8f537",
-  storageBucket: "sky-dodge-8f537.firebasestorage.app",
-  messagingSenderId: "169224412363",
-  appId: "1:169224412363:web:de0d018158d8b34e854f4e",
-  measurementId: "G-9NTWMKBC86"
+    apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
+    authDomain: "sky-dodge-8f537.firebaseapp.com",
+    projectId: "sky-dodge-8f537",
+    storageBucket: "sky-dodge-8f537.firebasestorage.app",
+    messagingSenderId: "169224412363",
+    appId: "1:169224412363:web:de0d018158d8b34e854f4e",
+    measurementId: "G-9NTWMKBC86"
 };
     
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-
+const auth = firebase.auth();
 let isLogin = true;
 
 function togglePass() {
@@ -67,45 +64,40 @@ function togglePass() {
 function switchMode() {
     isLogin = !isLogin;
     document.getElementById("title").innerText = isLogin ? "ĐĂNG NHẬP" : "ĐĂNG KÝ";
+    document.getElementById("userInput").placeholder = isLogin ? "Tên đăng nhập hoặc Email" : "Tên đăng nhập mong muốn";
+    document.getElementById("reg-fields").style.display = isLogin ? "none" : "block";
     document.getElementById("btnSubmit").innerText = isLogin ? "ĐĂNG NHẬP" : "ĐĂNG KÝ";
     document.getElementById("toggleTxt").innerText = isLogin ? "Chưa có tài khoản? Đăng ký ngay" : "Đã có tài khoản? Đăng nhập";
-    
-    // Hiện ô nhập tên khi đăng ký, ẩn khi đăng nhập
-    document.getElementById("username").style.display = isLogin ? "none" : "block";
-    document.getElementById("forgotBtn").style.display = isLogin ? "block" : "none";
 }
 
-async function forgotPass() {
-    const email = document.getElementById("email").value;
-    if (!email) return alert("Vui lòng nhập Email trước!");
-    try {
-        await firebase.auth().sendPasswordResetEmail(email);
-        alert("Đã gửi link đặt lại mật khẩu vào Email!");
-    } catch (e) { alert("Lỗi: " + e.message); }
+// Hàm tự động liên kết Tên thành Email hệ thống
+function getTargetEmail(input) {
+    if (input.includes("@")) return input.trim();
+    return input.trim().toLowerCase() + "@skydodge.sys";
 }
 
 async function handleAuth() {
-    const email = document.getElementById("email").value;
+    const input = document.getElementById("userInput").value;
     const pass = document.getElementById("pass").value;
-    const nickname = document.getElementById("username").value;
     const err = document.getElementById("error");
     
-    if(!email || !pass || (!isLogin && !nickname)) return err.innerText = "Vui lòng điền đủ!";
+    if(!input || !pass) return err.innerText = "Vui lòng điền đủ!";
     err.innerText = "Đang xử lý...";
 
     try {
+        const finalEmail = getTargetEmail(input);
+
         if (isLogin) {
-            await firebase.auth().signInWithEmailAndPassword(email, pass);
+            await auth.signInWithEmailAndPassword(finalEmail, pass);
             window.location.href = "index.html";
         } else {
-            const res = await firebase.auth().createUserWithEmailAndPassword(email, pass);
-            // Lưu tên vào Profile
-            await res.user.updateProfile({ displayName: nickname });
-            alert("Đăng ký thành công, chào mừng " + nickname + "!");
+            const res = await auth.createUserWithEmailAndPassword(finalEmail, pass);
+            await res.user.updateProfile({ displayName: input });
+            alert("Đăng ký thành công! Chào mừng " + input);
             window.location.href = "index.html";
         }
     } catch (e) { 
-        err.innerText = e.message; 
+        err.innerText = "Lỗi: " + e.message; 
     }
 }
 </script>
