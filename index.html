@@ -8,37 +8,22 @@
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
     <style>
         body { margin: 0; background: #1a1a1a; color: white; font-family: sans-serif; text-align: center; }
-        .container { padding-top: 15vh; }
-        h1 { font-size: 50px; color: #4CAF50; text-shadow: 0 0 15px rgba(76, 175, 80, 0.5); margin-bottom: 10px; }
-        p { font-size: 18px; color: #ccc; margin-bottom: 40px; }
-        .menu-btn { 
-            display: block; width: 250px; margin: 15px auto; padding: 15px; 
-            background: rgba(255, 255, 255, 0.05); border: 2px solid #4CAF50; 
-            color: white; text-decoration: none; border-radius: 30px; 
-            font-weight: bold; transition: 0.3s; 
-        }
-        .menu-btn:hover { background: #4CAF50; color: #000; transform: scale(1.05); }
-        .logout-btn { 
-            margin-top: 40px; color: #ff4d4d; cursor: pointer; 
-            background: none; border: 1px solid #ff4d4d; 
-            padding: 8px 20px; border-radius: 20px; font-size: 14px;
-        }
-        .logout-btn:hover { background: #ff4d4d; color: white; }
+        .container { padding-top: 20vh; }
+        h1 { font-size: 50px; color: #4CAF50; margin-bottom: 5px; }
+        .menu-btn { display: block; width: 250px; margin: 20px auto; padding: 15px; background: transparent; border: 2px solid #4CAF50; color: white; text-decoration: none; border-radius: 30px; font-weight: bold; }
+        .menu-btn:hover { background: #4CAF50; color: black; }
+        .logout { margin-top: 40px; color: #ff4d4d; cursor: pointer; border: 1px solid #ff4d4d; padding: 5px 15px; border-radius: 20px; display: inline-block; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>SKY DODGE</h1>
-        <p>Người chơi: <b id="user-name">Đang tải...</b></p>
-        
+        <p>Xin chào, <b id="user-display">Đang tải...</b></p>
         <a href="game.html" class="menu-btn">BẮT ĐẦU CHƠI</a>
-        <a href="#" class="menu-btn" onclick="alert('Bảng xếp hạng đang được cập nhật!')">BẢNG XẾP HẠNG</a>
-        
-        <button class="logout-btn" onclick="logout()">ĐĂNG XUẤT</button>
+        <div class="logout" onclick="logout()">ĐĂNG XUẤT</div>
     </div>
 
 <script>
-    // DÁN CHÍNH XÁC CONFIG CỦA BẠN VÀO ĐÂY
     const firebaseConfig = {
         apiKey: "AIzaSyBbdRGcZmqt5-ywPyssZ1C2CDoj11slDQs",
         authDomain: "sky-dodge-8f537.firebaseapp.com",
@@ -47,33 +32,19 @@
         messagingSenderId: "169224412363",
         appId: "1:169224412363:web:e7160623b367e012854f4e"
     };
-
-    // Khởi tạo Firebase
-    if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-    }
+    firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
 
-    // Kiểm tra trạng thái đăng nhập
     auth.onAuthStateChanged(user => {
         if (user) {
-            document.getElementById('user-name').innerText = user.displayName || user.email.split('@')[0];
+            document.getElementById('user-display').innerText = user.displayName || user.email;
         } else {
-            // Nếu chưa đăng nhập hoặc đã đăng xuất, đẩy về trang auth.html
             window.location.href = "auth.html";
         }
     });
 
-    // Hàm đăng xuất
     function logout() {
-        if (confirm("Bạn có chắc chắn muốn đăng xuất không?")) {
-            auth.signOut().then(() => {
-                console.log("Đã đăng xuất thành công");
-                window.location.href = "auth.html";
-            }).catch((error) => {
-                alert("Lỗi khi đăng xuất: " + error.message);
-            });
-        }
+        auth.signOut().then(() => window.location.href = "auth.html");
     }
 </script>
 </body>
