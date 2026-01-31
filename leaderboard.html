@@ -1,0 +1,16 @@
+const db = firebase.database();
+const lbRef = db.ref('leaderboard').orderByChild('score').limitToLast(10);
+
+lbRef.on('value', (snapshot) => {
+    const list = [];
+    snapshot.forEach((child) => {
+        list.push(child.val());
+    });
+    list.reverse(); // Đảo ngược để người cao điểm nhất lên đầu
+
+    let html = '<tr><th>Hạng</th><th>Tên</th><th>Thời gian (s)</th></tr>';
+    list.forEach((user, index) => {
+        html += `<tr><td>${index + 1}</td><td>${user.name}</td><td>${user.score}</td></tr>`;
+    });
+    document.getElementById('leaderboard-table').innerHTML = html;
+});
