@@ -3,22 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sky Dodge - Trang chủ</title>
+    <title>Sky Dodge - Home</title>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
     <style>
         body { margin: 0; background: #1a1a1a; color: white; font-family: sans-serif; text-align: center; }
         .container { padding-top: 20vh; }
-        h1 { font-size: 50px; color: #4CAF50; margin-bottom: 5px; }
+        h1 { font-size: 50px; color: #4CAF50; }
         .menu-btn { display: block; width: 250px; margin: 20px auto; padding: 15px; background: transparent; border: 2px solid #4CAF50; color: white; text-decoration: none; border-radius: 30px; font-weight: bold; }
         .menu-btn:hover { background: #4CAF50; color: black; }
-        .logout { margin-top: 40px; color: #ff4d4d; cursor: pointer; border: 1px solid #ff4d4d; padding: 5px 15px; border-radius: 20px; display: inline-block; }
+        .logout { margin-top: 40px; color: #ff4d4d; cursor: pointer; border: 1px solid #ff4d4d; padding: 8px 20px; border-radius: 20px; display: inline-block; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>SKY DODGE</h1>
-        <p>Xin chào, <b id="user-display">Đang tải...</b></p>
+        <p>Xin chào, <b id="user-display">Đang kiểm tra...</b></p>
         <a href="game.html" class="menu-btn">BẮT ĐẦU CHƠI</a>
         <div class="logout" onclick="logout()">ĐĂNG XUẤT</div>
     </div>
@@ -32,9 +32,13 @@
         messagingSenderId: "169224412363",
         appId: "1:169224412363:web:e7160623b367e012854f4e"
     };
-    firebase.initializeApp(firebaseConfig);
+    
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
     const auth = firebase.auth();
 
+    // Lắng nghe trạng thái đăng nhập
     auth.onAuthStateChanged(user => {
         if (user) {
             document.getElementById('user-display').innerText = user.displayName || user.email;
@@ -44,7 +48,9 @@
     });
 
     function logout() {
-        auth.signOut().then(() => window.location.href = "auth.html");
+        auth.signOut().then(() => {
+            window.location.href = "auth.html";
+        }).catch(e => alert("Lỗi đăng xuất: " + e.message));
     }
 </script>
 </body>
