@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bell - Game Gạt Kính</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #1a1a1a; color: white; font-family: sans-serif; touch-action: none; }
+        
+        /* Màn hình Đăng nhập */
+        #auth-screen {
+            position: fixed; width: 100vw; height: 100vh; background: #111;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000;
+        }
+        .auth-box { background: #222; padding: 30px; border-radius: 10px; width: 80%; max-width: 300px; text-align: center; border: 1px solid #444; }
+        input { width: 90%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; }
+        .auth-btn { width: 100%; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; font-weight: bold; }
+        .toggle-link { margin-top: 15px; font-size: 14px; color: #888; cursor: pointer; display: block; }
+
+        /* Game UI */
+        #game-container { display: none; position: relative; width: 100vw; height: 100vh; }
+        #paddle {
+            position: absolute; bottom: 120px; left: 50%; width: 130px; height: 18px;
+            background: rgba(255, 255, 255, 0.4); border: 2px solid #fff; border-radius: 10px;
+            transform: translateX(-50%); z-index: 100;
+        }
+        .ui { position: fixed; top: 20px; width: 100%; text-align: center; pointer-events: none; z-index: 200; }
+        .red { color: #ff4d4d; font-weight: bold; font-size: 26px; }
+        .progress-bg { width: 80%; max-width: 300px; height: 15px; background: #333; margin: 5px auto; border-radius: 10px; }
+        #bar { height: 100%; width: 0%; background: #4CAF50; transition: 0.1s; }
+        .falling-item { position: absolute; width: 70px; pointer-events: none; }
+        
+        #msg { 
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            text-align: center; z-index: 300; background: rgba(0,0,0,0.95); padding: 25px; 
+            width: 80%; border: 2px solid red; border-radius: 15px; 
+        }
+    </style>
+</head>
+<body>
+
+<div id="auth-screen">
+    <div class="auth-box" id="login-form">
+        <h2 id="auth-title">ĐĂNG NHẬP</h2>
+        <input type="text" id="username" placeholder="Tên đăng nhập">
+        <input type="password" id="password" placeholder="Mật khẩu">
+        <button class="auth-btn" onclick="handleAuth()">VÀO GAME</button>
+        <span class="toggle-link" onclick="toggleAuth()">Chưa có tài khoản? Đăng ký ngay</span>
+    </div>
+</div>
+
+<div id="game-container">
+    <div class="ui">
+        <div style="font-size: 14px;">Chào: <span id="user-display"></span> | ⏱ <span id="timer">0</span>s</div>
+        <div class="red">Khối lượng: <span id="num">0</span> / 100</div>
+        <div class="progress-bg"><div id="bar"></div></div>
+    </div>
+    <div id="paddle"></div>
+    <div id="msg">
+        <h1 style="color:red;">KÍNH VỠ RỒI!</h1>
+        <p id="final-stats"></p>
+        <button class="auth-btn" style="background:#ff4d4d" onclick="location.reload()">CHƠI LẠI</button>
+    </div>
+</div>
+
+<script>
+    let isLoginMode = true;
+    const authScreen = document.getElementById('auth-screen');
+    const gameContainer = document.getElementById('game-container');
+
+    // Chuyển đổi giữa Đăng ký và Đăng nhập
+    function toggleAuth() {
+        isLoginMode = !isLoginMode;
+        document.getElementById('auth-title').innerText = isLoginMode ? "ĐĂNG NHẬP" : "ĐĂNG KÝ";
+        document.querySelector('.toggle-link').innerText = isLoginMode ? "Chưa có tài khoản? Đăng ký ngay" : "Đã có tài khoản? Đăng nhập";
+    }
+
+    function handleAuth() {
+        const user = document.getElementById('username').value;
+        const pass = document.getElementById('password').value;
+        if (!user || !pass) return alert("Vui lòng nhập đủ!");
+
+        if (isLoginMode) {
+            const savedPass = localStorage.getItem('user_' + user);
+            if (savedPass === pass) {
+                startGame(user);
+            } else {
+                alert("Sai tên hoặc mật khẩu!");
+            }
+        } else {
+            localStorage.setItem('user_' + user, pass);
+            alert("Đăng ký xong! Giờ hãy đăng nhập.");
+            toggleAuth();
+        }
+    }
+
+    // LOGIC GAME (Giữ nguyên từ bản trước)
+    let score = 0, seconds = 0, gameOver = false, baseSpeed = 5;
+    const imgURL = 'https://lh3.googleusercontent.com/d/16bzAEYDVO01KwYA4Vee3_Vivc98SmWS-'; 
+
+    function startGame(username) {
+        authScreen.style.display = 'none';
+        gameContainer.style.display = 'block';
+        document.getElementById('user-display').innerText = username;
+        
+        // Bắt đầu đếm thời gian
+        const gameTimer = setInterval(() => {
+            if (!gameOver) {
+                seconds++;
+                document.getElementById('timer').innerText = seconds;
+                if (seconds % 7 === 0) baseSpeed += 0.8;
+            } else clearInterval(gameTimer);
+        }, 1000);
+        spawnLoop();
+    }
+
+    const paddle = document.getElementById('paddle');
+    function movePaddle(x) {
+        if (!gameOver) {
+            let half = paddle.offsetWidth / 2;
+            paddle.style.left = Math.max(half, Math.min(x, window.innerWidth - half)) + 'px';
+        }
+    }
+    window.addEventListener('mousemove', (e) => movePaddle(e.clientX));
+    window.addEventListener('touchmove', (e) => { e.preventDefault(); movePaddle(e.touches[0].clientX); }, { passive: false });
+
+    function createItem() {
+        if (gameOver) return;
+        const item = document.createElement('img');
+        item.src = imgURL;
+        item.className = 'falling-item';
+        item.style.left = Math.random() * (window.innerWidth - 70) + 'px';
+        item.style.top = '-100px';
+        gameContainer.appendChild(item);
+        let top = -100;
+        const speed = baseSpeed + (Math.random() * 2);
+        const fall = setInterval(() => {
+            if (gameOver) { clearInterval(fall); item.remove(); return; }
+            top += speed;
+            item.style.top = top + 'px';
+            const p = paddle.getBoundingClientRect(), i = item.getBoundingClientRect();
+            if (i.bottom >= p.top && i.right >= p.left && i.left <= p.right && i.top <= p.bottom) {
+                score += 10;
+                document.getElementById('num').innerText = score;
+                document.getElementById('bar').style.width = score + '%';
+                if (score >= 100) {
+                    gameOver = true;
+                    document.getElementById('final-stats').innerText = `Bạn trụ được ${seconds} giây!`;
+                    document.getElementById('msg').style.display = 'block';
+                    paddle.style.background = 'red';
+                }
+                clearInterval(fall); item.remove();
+            }
+            if (top > window.innerHeight) { clearInterval(fall); item.remove(); }
+        }, 20);
+    }
+
+    function spawnLoop() {
+        if (!gameOver) {
+            createItem();
+            setTimeout(spawnLoop, Math.max(250, 850 - (seconds * 12)));
+        }
+    }
+</script>
+</body>
+</html>
