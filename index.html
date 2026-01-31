@@ -5,56 +5,79 @@
     <title>Sky Dodge - Home</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-</head>
-<body style="background: #1a1a1a; color: white; font-family: sans-serif;">
-    <div id="loading" style="text-align: center; margin-top: 100px;">Đang kiểm tra tài khoản...</div>
+    <style>
+        body { font-family: sans-serif; margin: 0; background: #fff; height: 100vh; display: flex; flex-direction: column; }
+        
+        /* Header: Tên game và nút Đăng xuất */
+        .header { display: flex; justify-content: space-between; padding: 20px 40px; align-items: flex-start; }
+        .logo { color: #8BC34A; font-size: 32px; font-weight: bold; margin: 0; }
+        .logout-btn { background: none; border: none; font-size: 16px; cursor: pointer; color: #000; }
 
-    <div id="main-content" style="display: none; text-align: center; margin-top: 100px;">
-        <h1 style="color: #4CAF50;">SKY DODGE</h1>
-        <p>Chào mừng chiến binh: <span id="user-name" style="font-weight: bold; color: #ffeb3b;">...</span></p>
-        <button onclick="location.href='game.html'" style="padding: 15px 30px; background: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">BẮT ĐẦU CHƠI</button>
-        <br><br>
-        <button onclick="logout()" style="background: none; border: none; color: #888; cursor: pointer; text-decoration: underline;">Đăng xuất</button>
+        /* Thông tin người dùng */
+        .user-info { padding: 0 40px; margin-top: -10px; }
+        .user-info p { margin: 5px 0; font-size: 18px; }
+
+        /* Nút Bắt đầu chơi ở giữa */
+        .main-action { flex: 1; display: flex; justify-content: center; align-items: center; }
+        .play-btn { background: none; border: none; font-size: 40px; font-weight: 900; cursor: pointer; transition: 0.2s; }
+        .play-btn:hover { transform: scale(1.1); }
+
+        /* Menu dưới cùng */
+        .footer-menu { display: flex; justify-content: space-around; padding: 40px; border-top: 1px solid #eee; }
+        .menu-item { background: none; border: none; font-size: 24px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div id="loading" style="text-align: center; margin-top: 100px;">Đang tải dữ liệu...</div>
+
+<div id="main-content" style="display: none; height: 100vh; flex-direction: column;">
+    <div class="header">
+        <h1 class="logo">SKY DODGE</h1>
+        <button class="logout-btn" onclick="logout()">Đăng xuất</button>
     </div>
 
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
-            authDomain: "sky-dodge-8f537.firebaseapp.com",
-            projectId: "sky-dodge-8f537",
-            storageBucket: "sky-dodge-8f537.firebasestorage.app",
-            messagingSenderId: "169224412363",
-            appId: "1:169224412363:web:de0d018158d8b34e854f4e",
-            measurementId: "G-9NTWMKBC86"
-        };
+    <div class="user-info">
+        <p>Chào mừng chiến binh: <span id="user-name" style="font-weight: bold;">[Tên người dùng]</span></p>
+        <p><strong>Số xu: 0</strong></p>
+    </div>
 
-        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    <div class="main-action">
+        <button class="play-btn" onclick="location.href='game.html'">BẮT ĐẦU CHƠI</button>
+    </div>
 
-        // Đợi Firebase phản hồi xong mới hành động
-        firebase.auth().onAuthStateChanged(user => {
-            const loading = document.getElementById('loading');
-            const content = document.getElementById('main-content');
+    <div class="footer-menu">
+        <button class="menu-item" onclick="alert('Tính năng Bạn bè đang phát triển')">Bạn bè</button>
+        <button class="menu-item" onclick="alert('Cửa hàng sẽ mở sớm')">Cửa hàng</button>
+        <button class="menu-item" onclick="alert('Bảng xếp hạng đang cập nhật')">Bảng xếp hạng</button>
+    </div>
+</div>
 
-            if (user) {
-                // ĐÃ ĐĂNG NHẬP
-                loading.style.display = 'none';
-                content.style.display = 'block';
-                document.getElementById('user-name').innerText = user.displayName || user.email;
-            } else {
-                // CHƯA ĐĂNG NHẬP - Chuyển đi sau 1 giây để tránh lỗi load chậm
-                setTimeout(() => {
-                    if (!firebase.auth().currentUser) {
-                        window.location.href = "auth.html";
-                    }
-                }, 1000);
-            }
-        });
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
+        authDomain: "sky-dodge-8f537.firebaseapp.com",
+        projectId: "sky-dodge-8f537",
+        storageBucket: "sky-dodge-8f537.firebasestorage.app",
+        messagingSenderId: "169224412363",
+        appId: "1:169224412363:web:de0d018158d8b34e854f4e"
+    };
+    
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 
-        function logout() {
-            firebase.auth().signOut().then(() => {
-                window.location.href = "auth.html";
-            });
+    firebase.auth().onAuthStateChanged(user => {
+        if (user) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('main-content').style.display = 'flex';
+            document.getElementById('user-name').innerText = user.displayName || "Chiến binh";
+        } else {
+            window.location.href = "auth.html";
         }
-    </script>
+    });
+
+    function logout() {
+        firebase.auth().signOut().then(() => window.location.href = "auth.html");
+    }
+</script>
 </body>
 </html>
