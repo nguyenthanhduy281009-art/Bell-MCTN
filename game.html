@@ -53,7 +53,7 @@
 </div>
 
 <script>
-    // 1. NGĂN CHẶN ZOOM (CTRL + CUỘN CHUỘT / PHÍM + -)
+    // 1. NGĂN CHẶN ZOOM
     window.addEventListener('wheel', (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
     window.addEventListener('keydown', (e) => {
         if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) e.preventDefault();
@@ -107,40 +107,31 @@
         }
     }, 1000);
 
-   async function saveGameData() {
-    const user = firebase.auth().currentUser;
-    if (!user) return;
+    // HÀM LƯU DỮ LIỆU CHUẨN
+    async function saveGameData() {
+        const user = firebase.auth().currentUser;
+        if (!user) return;
 
-    // 1. SỐ XU BẰNG SỐ GIÂY CHƠI (seconds là biến đếm thời gian của Duy)
-    const coinsEarned = seconds; 
-    
-    try {
-        // 2. CỘNG DỒN XU VÀO TỔNG SỐ DƯ
-        const userCoinsRef = db.ref('users/' + user.uid + '/coins');
-        await userCoinsRef.transaction((currentValue) => {
-            return (currentValue || 0) + coinsEarned;
-        });
-
-        // 3. CẬP NHẬT BẢNG XẾP HẠNG (Chỉ cập nhật nếu phá kỷ lục giây cũ)
-        const lbRef = db.ref('leaderboard/' + user.uid);
-        const snap = await lbRef.once('value');
-        const oldRecord = snap.val()?.score || 0;
-
-        if (seconds > oldRecord) {
-            await lbRef.set({ 
-                name: user.displayName || user.email.split('@')[0], 
-                score: seconds 
-            });
-            console.log("Đã phá kỷ lục mới!");
-        }
-
-        // Hiển thị thông báo kết quả
-        document.getElementById('coin-stats').innerText = `Bạn nhận được ${coinsEarned} Xu!`;
+        const coinsEarned = seconds; 
         
-    } catch (error) {
-        console.error("Lỗi lưu dữ liệu:", error);
+        try {
+            // Cộng xu vào ví người dùng
+            await db.ref('users/' + user.uid + '/coins').transaction((current) => (current || 0) + coinsEarned);
+
+            // Cập nhật Leaderboard toàn cầu
+            const lbRef = db.ref('leaderboard/' + user.uid);
+            const snap = await lbRef.once('value');
+            const oldRecord = snap.val()?.score || 0;
+
+            if (seconds > oldRecord) {
+                await lbRef.set({ 
+                    name: user.displayName || user.email.split('@')[0], 
+                    score: seconds 
+                });
+            }
+            document.getElementById('coin-stats').innerText = `+${coinsEarned} Xu đã nhận!`;
+        } catch (e) { console.error(e); }
     }
-}
 
     function createItem() {
         if (gameOver) return;
@@ -159,15 +150,17 @@
             top += speed;
             item.style.top = top + 'px';
             const p = paddle.getBoundingClientRect(), i = item.getBoundingClientRect();
+            
             if (i.bottom >= p.top && i.right >= p.left && i.left <= p.right && i.top <= p.bottom) {
                 score += 10;
                 numDisp.innerText = score;
                 barDisp.style.width = Math.min(score, 100) + '%';
+                
                 if (score >= 100) {
                     gameOver = true;
                     msg.style.display = 'block';
                     document.getElementById('final-stats').innerText = `Trụ được: ${seconds}s`;
-                    saveGameData();
+                    saveGameData(); // Kích hoạt lưu
                 }
                 clearInterval(fallInterval); item.remove();
             }
