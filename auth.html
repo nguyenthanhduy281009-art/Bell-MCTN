@@ -7,13 +7,13 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <style>
-        :root { --primary: #4CAF50; } /* Đổi sang màu xanh lá của Sky Dodge */
+        :root { --primary: #4CAF50; }
         body { font-family: sans-serif; background: #1a1a1a; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         .box { background: #222; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: 320px; text-align: center; color: white; }
         .brand-name { font-size: 32px; font-weight: 900; margin-bottom: 5px; background: linear-gradient(45deg, #4CAF50, #8BC34A); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 1px; }
         #title { margin-top: 0; margin-bottom: 20px; font-size: 16px; color: #bbb; }
         .input-group { position: relative; margin: 8px 0; }
-        input { width: 100%; padding: 12px; border: 1px solid #444; border-radius: 8px; box-sizing: border-box; outline: none; background: #000; color: #fff; }
+        input { width: 100%; padding: 12px; border: 1px solid #444; border-radius: 8px; box-sizing: border-box; outline: none; background: #000; color: #fff; margin-bottom: 8px; }
         .show-btn { position: absolute; right: 10px; top: 10px; background: #333; border: none; padding: 5px; border-radius: 4px; font-size: 10px; cursor: pointer; color: #fff; }
         button.main { width: 100%; padding: 12px; background: var(--primary); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; }
         .link { margin-top: 15px; font-size: 13px; color: #4CAF50; cursor: pointer; }
@@ -25,6 +25,8 @@
     <div class="brand-name">SKY DODGE</div>
     <h2 id="title">ĐĂNG NHẬP</h2>
     
+    <input type="text" id="username" placeholder="Tên trong game" style="display: none;">
+    
     <input type="email" id="email" placeholder="Email của bạn">
     
     <div class="input-group">
@@ -32,7 +34,7 @@
         <button class="show-btn" onclick="togglePass()">HIỆN</button>
     </div>
 
-    <a class="forgot" onclick="forgotPass()">Quên mật khẩu?</a>
+    <a class="forgot" id="forgotBtn" onclick="forgotPass()">Quên mật khẩu?</a>
 
     <button class="main" onclick="handleAuth()" id="btnSubmit">ĐĂNG NHẬP</button>
     
@@ -42,8 +44,6 @@
 </div>
 
 <script>
-    // CẤU HÌNH CHUẨN CỦA SKY DODGE (Lấy từ ảnh của Duy)
-    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
   authDomain: "sky-dodge-8f537.firebaseapp.com",
@@ -54,53 +54,60 @@ const firebaseConfig = {
   measurementId: "G-9NTWMKBC86"
 };
     
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 
-    let isLogin = true;
+let isLogin = true;
 
-    function togglePass() {
-        const p = document.getElementById("pass");
-        p.type = p.type === "password" ? "text" : "password";
-        event.target.innerText = p.type === "password" ? "HIỆN" : "ẨN";
-    }
+function togglePass() {
+    const p = document.getElementById("pass");
+    p.type = p.type === "password" ? "text" : "password";
+    event.target.innerText = p.type === "password" ? "HIỆN" : "ẨN";
+}
 
-    function switchMode() {
-        isLogin = !isLogin;
-        document.getElementById("title").innerText = isLogin ? "ĐĂNG NHẬP" : "ĐĂNG KÝ";
-        document.getElementById("btnSubmit").innerText = isLogin ? "ĐĂNG NHẬP" : "ĐĂNG KÝ";
-        document.getElementById("toggleTxt").innerText = isLogin ? "Chưa có tài khoản? Đăng ký ngay" : "Đã có tài khoản? Đăng nhập";
-    }
+function switchMode() {
+    isLogin = !isLogin;
+    document.getElementById("title").innerText = isLogin ? "ĐĂNG NHẬP" : "ĐĂNG KÝ";
+    document.getElementById("btnSubmit").innerText = isLogin ? "ĐĂNG NHẬP" : "ĐĂNG KÝ";
+    document.getElementById("toggleTxt").innerText = isLogin ? "Chưa có tài khoản? Đăng ký ngay" : "Đã có tài khoản? Đăng nhập";
+    
+    // Hiện ô nhập tên khi đăng ký, ẩn khi đăng nhập
+    document.getElementById("username").style.display = isLogin ? "none" : "block";
+    document.getElementById("forgotBtn").style.display = isLogin ? "block" : "none";
+}
 
-    async function forgotPass() {
-        const email = document.getElementById("email").value;
-        if (!email) return alert("Vui lòng nhập Email trước!");
-        try {
-            await firebase.auth().sendPasswordResetEmail(email);
-            alert("Đã gửi link đặt lại mật khẩu vào Email!");
-        } catch (e) { alert("Lỗi: " + e.message); }
-    }
+async function forgotPass() {
+    const email = document.getElementById("email").value;
+    if (!email) return alert("Vui lòng nhập Email trước!");
+    try {
+        await firebase.auth().sendPasswordResetEmail(email);
+        alert("Đã gửi link đặt lại mật khẩu vào Email!");
+    } catch (e) { alert("Lỗi: " + e.message); }
+}
 
-    async function handleAuth() {
-        const email = document.getElementById("email").value;
-        const pass = document.getElementById("pass").value;
-        const err = document.getElementById("error");
-        
-        if(!email || !pass) return err.innerText = "Vui lòng điền đủ!";
-        err.innerText = "Đang xử lý...";
+async function handleAuth() {
+    const email = document.getElementById("email").value;
+    const pass = document.getElementById("pass").value;
+    const nickname = document.getElementById("username").value;
+    const err = document.getElementById("error");
+    
+    if(!email || !pass || (!isLogin && !nickname)) return err.innerText = "Vui lòng điền đủ!";
+    err.innerText = "Đang xử lý...";
 
-        try {
-            if (isLogin) {
-                await firebase.auth().signInWithEmailAndPassword(email, pass);
-                window.location.href = "index.html"; // Chuyển về index.html của game
-            } else {
-                await firebase.auth().createUserWithEmailAndPassword(email, pass);
-                alert("Đăng ký thành công! Đang vào game...");
-                window.location.href = "index.html";
-            }
-        } catch (e) { 
-            err.innerText = e.message; 
+    try {
+        if (isLogin) {
+            await firebase.auth().signInWithEmailAndPassword(email, pass);
+            window.location.href = "index.html";
+        } else {
+            const res = await firebase.auth().createUserWithEmailAndPassword(email, pass);
+            // Lưu tên vào Profile
+            await res.user.updateProfile({ displayName: nickname });
+            alert("Đăng ký thành công, chào mừng " + nickname + "!");
+            window.location.href = "index.html";
         }
+    } catch (e) { 
+        err.innerText = e.message; 
     }
+}
 </script>
 </body>
 </html>
