@@ -3,29 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <title>Sky Dodge - Home</title>
-    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
 </head>
-<body>
+<body style="background: #1a1a1a; color: white; font-family: sans-serif;">
     <div style="text-align: center; margin-top: 100px;">
-        <h1>SKY DODGE</h1>
-        <p>Chào mừng: <span id="user-email">...</span></p>
-        <button onclick="location.href='game.html'">BẮT ĐẦU CHƠI</button><br><br>
-        <button onclick="firebase.auth().signOut()">Đăng xuất</button>
+        <h1 style="color: #4CAF50;">SKY DODGE</h1>
+        <p>Chào mừng chiến binh: <span id="user-name" style="font-weight: bold; color: #ffeb3b;">...</span></p>
+        
+        <button onclick="location.href='game.html'" style="padding: 15px 30px; background: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">BẮT ĐẦU CHƠI</button>
+        
+        <br><br>
+        <button onclick="logout()" style="background: none; border: none; color: #888; cursor: pointer; text-decoration: underline;">Đăng xuất</button>
     </div>
 
     <script>
+        // Cấu hình phải khớp y hệt file auth.html
         const firebaseConfig = {
-            apiKey: "AIzaSyBbdRGcZmqt5-ywPyssZ1C2CDoj11slDQs",
+            apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
             authDomain: "sky-dodge-8f537.firebaseapp.com",
             projectId: "sky-dodge-8f537",
-            appId: "1:169224412363:web:e7160623b367e012854f4e"
+            storageBucket: "sky-dodge-8f537.firebasestorage.app",
+            messagingSenderId: "169224412363",
+            appId: "1:169224412363:web:de0d018158d8b34e854f4e",
+            measurementId: "G-9NTWMKBC86"
         };
-        firebase.initializeApp(firebaseConfig);
+
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+
+        // Kiểm tra trạng thái đăng nhập
         firebase.auth().onAuthStateChanged(user => {
-            if (user) document.getElementById('user-email').innerText = user.email;
-            else window.location.href = "auth.html";
+            if (user) {
+                // Ưu tiên hiển thị Nickname (displayName), nếu không có mới hiện Email
+                document.getElementById('user-name').innerText = user.displayName || user.email;
+            } else {
+                // Nếu chưa đăng nhập thì mới đẩy ra trang auth
+                window.location.href = "auth.html";
+            }
         });
+
+        function logout() {
+            firebase.auth().signOut().then(() => {
+                window.location.href = "auth.html";
+            });
+        }
     </script>
 </body>
 </html>
