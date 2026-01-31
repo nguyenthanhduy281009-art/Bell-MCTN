@@ -43,12 +43,16 @@
 
 <script>
     // CẤU HÌNH CHUẨN CỦA SKY DODGE (Lấy từ ảnh của Duy)
-    const firebaseConfig = {
-        apiKey: "AIzaSyBbdRGcZmqt5-ywPyssZ1C2CDoj11slDQs",
-        authDomain: "sky-dodge-8f537.firebaseapp.com",
-        projectId: "sky-dodge-8f537",
-        appId: "1:169224412363:web:e7160623b367e012854f4e"
-    };
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
+  authDomain: "sky-dodge-8f537.firebaseapp.com",
+  projectId: "sky-dodge-8f537",
+  storageBucket: "sky-dodge-8f537.firebasestorage.app",
+  messagingSenderId: "169224412363",
+  appId: "1:169224412363:web:de0d018158d8b34e854f4e",
+  measurementId: "G-9NTWMKBC86"
+};
     
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 
