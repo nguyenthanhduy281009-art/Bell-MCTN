@@ -2,26 +2,16 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sky Dodge - Đăng nhập</title>
+    <title>Sky Dodge - Login</title>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
-    <style>
-        body { margin: 0; background: #111; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        .auth-box { background: #222; padding: 25px; border-radius: 12px; width: 320px; text-align: center; border: 1px solid #444; }
-        input { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #333; background: #000; color: #fff; box-sizing: border-box; }
-        .main-btn { width: 100%; padding: 12px; background: #2e7d32; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        .link { margin-top: 15px; font-size: 13px; color: #4CAF50; cursor: pointer; text-decoration: underline; }
-    </style>
 </head>
 <body>
-    <div class="auth-box">
-        <h2 id="title">ĐĂNG NHẬP</h2>
-        <input type="email" id="email" placeholder="Gmail">
-        <input type="password" id="password" placeholder="Mật khẩu">
-        <div id="reg-box" style="display:none"><input type="text" id="name" placeholder="Tên của bạn"></div>
-        <button class="main-btn" onclick="handleAuth()">XÁC NHẬN</button>
-        <div class="link" onclick="toggle()">Chưa có tài khoản? Đăng ký</div>
+    <div style="text-align: center; margin-top: 50px;">
+        <h2>ĐĂNG NHẬP / ĐĂNG KÝ</h2>
+        <input type="email" id="email" placeholder="Email"><br><br>
+        <input type="password" id="password" placeholder="Mật khẩu"><br><br>
+        <button onclick="handleAuth()">VÀO HỆ THỐNG</button>
     </div>
 
     <script>
@@ -29,31 +19,29 @@
             apiKey: "AIzaSyBbdRGcZmqt5-ywPyssZ1C2CDoj11slDQs",
             authDomain: "sky-dodge-8f537.firebaseapp.com",
             projectId: "sky-dodge-8f537",
+            storageBucket: "sky-dodge-8f537.firebasestorage.app",
+            messagingSenderId: "169224412363",
             appId: "1:169224412363:web:e7160623b367e012854f4e"
         };
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
-        let isLogin = true;
-
-        function toggle() {
-            isLogin = !isLogin;
-            document.getElementById('title').innerText = isLogin ? "ĐĂNG NHẬP" : "ĐĂNG KÝ";
-            document.getElementById('reg-box').style.display = isLogin ? "none" : "block";
-        }
 
         async function handleAuth() {
             const email = document.getElementById('email').value;
             const pass = document.getElementById('password').value;
             try {
-                if (isLogin) {
-                    await auth.signInWithEmailAndPassword(email, pass);
-                } else {
-                    const nick = document.getElementById('name').value;
-                    const res = await auth.createUserWithEmailAndPassword(email, pass);
-                    await res.user.updateProfile({ displayName: nick });
-                }
+                // Thử đăng ký, nếu mail đã tồn tại thì tự động đăng nhập
+                await auth.createUserWithEmailAndPassword(email, pass)
+                    .catch(error => {
+                        if (error.code === 'auth/email-already-in-use') {
+                            return auth.signInWithEmailAndPassword(email, pass);
+                        }
+                        throw error;
+                    });
                 window.location.href = "index.html";
-            } catch (e) { alert("Lỗi: " + e.message); }
+            } catch (e) {
+                alert("Lỗi: " + e.message);
+            }
         }
     </script>
 </body>
