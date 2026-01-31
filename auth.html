@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sky Dodge - Đăng nhập</title>
+    <title>Sky Dodge - Auth</title>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
     <style>
         body { margin: 0; background: #111; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        .auth-box { background: #222; padding: 25px; border-radius: 12px; width: 85%; max-width: 350px; border: 1px solid #444; text-align: center; }
+        .auth-box { background: #222; padding: 25px; border-radius: 12px; width: 85%; max-width: 350px; border: 1px solid #444; }
         input { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #333; background: #000; color: #fff; box-sizing: border-box; }
         .main-btn { width: 100%; padding: 12px; background: #2e7d32; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; }
         .links { display: flex; justify-content: space-between; margin-top: 15px; font-size: 13px; color: #4CAF50; }
@@ -24,25 +24,19 @@
         <button class="main-btn" onclick="handleAuth()">VÀO HỆ THỐNG</button>
         <div class="links">
             <span onclick="forgotPass()">Quên mật khẩu?</span>
-            <span onclick="toggleMode()">Chưa có tài khoản? Đăng ký</span>
+            <span id="toggle-txt" onclick="toggleMode()">Chưa có tài khoản? Đăng ký</span>
         </div>
     </div>
-
 <script>
-    // Thông số lấy chính xác từ ảnh cấu hình Duy gửi
     const firebaseConfig = {
         apiKey: "AIzaSyBbdRGcZmqt5-ywPyssZ1C2CDoj11slDQs",
         authDomain: "sky-dodge-8f537.firebaseapp.com",
         projectId: "sky-dodge-8f537",
         storageBucket: "sky-dodge-8f537.firebasestorage.app",
         messagingSenderId: "169224412363",
-        appId: "1:169224412363:web:e7160623b367e012854f4e",
-        measurementId: "G-ZWQJYLP778"
+        appId: "1:169224412363:web:e7160623b367e012854f4e"
     };
-
-    if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-    }
+    firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     let isLogin = true;
 
@@ -50,6 +44,7 @@
         isLogin = !isLogin;
         document.getElementById('auth-title').innerText = isLogin ? "ĐĂNG NHẬP" : "ĐĂNG KÝ";
         document.getElementById('reg-fields').style.display = isLogin ? "none" : "block";
+        document.getElementById('toggle-txt').innerText = isLogin ? "Chưa có tài khoản? Đăng ký" : "Đã có tài khoản? Đăng nhập";
     }
 
     async function handleAuth() {
@@ -63,16 +58,9 @@
                 const name = document.getElementById('display-name').value;
                 const res = await auth.createUserWithEmailAndPassword(email, pass);
                 await res.user.updateProfile({ displayName: name });
-                alert("Đăng ký thành công! Đang chuyển hướng...");
                 window.location.href = "index.html";
             }
-        } catch (e) { alert("Lỗi Firebase: " + e.message); }
-    }
-
-    function forgotPass() {
-        const email = document.getElementById('email').value;
-        if (!email) return alert("Nhập email để reset mật khẩu!");
-        auth.sendPasswordResetEmail(email).then(() => alert("Đã gửi link vào Gmail!")).catch(e => alert(e.message));
+        } catch (e) { alert(e.message); }
     }
 </script>
 </body>
