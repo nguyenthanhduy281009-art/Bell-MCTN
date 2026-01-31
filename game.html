@@ -1,6 +1,75 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<script>
+    // ... (Giữ nguyên config cũ của Duy) ...
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const auth = firebase.auth();
+
+    let secondsPlayed = 0;
+    let timerInterval;
+
+    // Khi game bắt đầu thực sự (sau chữ GO)
+    function startCounting() {
+        timerInterval = setInterval(() => {
+            if (gameActive) {
+                secondsPlayed++;
+                document.getElementById('score').innerText = secondsPlayed;
+            }
+        }, 1000);
+    }
+
+    // Hàm gọi khi người chơi thua
+    async function gameOver() {
+        gameActive = false;
+        clearInterval(timerInterval);
+        
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const userRef = db.ref('users/' + user.uid);
+        
+        // 1. Cộng xu (1 giây = 1 xu)
+        await userRef.transaction((data) => {
+            if (data) {
+                data.coins = (data.coins || 0) + secondsPlayed;
+            } else {
+                data = { coins: secondsPlayed, name: user.displayName };
+            }
+            return data;
+        });
+
+        // 2. Cập nhật Bảng xếp hạng (Chỉ lưu nếu là kỷ lục mới)
+        const lbRef = db.ref('leaderboard/' + user.uid);
+        await lbRef.once('value', (snapshot) => {
+            const currentBest = snapshot.val()?.score || 0;
+            if (secondsPlayed > currentBest) {
+                lbRef.set({
+                    name: user.displayName || "Chiến binh",
+                    score: secondsPlayed
+                });
+            }
+        });
+
+        alert("Game Over! Bạn sống được " + secondsPlayed + " giây và nhận được " + secondsPlayed + " xu.");
+        window.location.href = "index.html";
+    }
+
+    // Sửa lại đoạn window.onload để kích hoạt đếm giờ
+    window.onload = () => {
+        setTimeout(() => {
+            goText.classList.add('show-go');
+            setTimeout(() => {
+                goText.style.opacity = '0';
+                gameActive = true;
+                startCounting(); // Bắt đầu đếm giây
+            }, 1000);
+        }, 200);
+    };
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Sky Dodge - Play</title>
