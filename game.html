@@ -1,147 +1,165 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-
-<script>
-    // ... (Giữ nguyên config cũ của Duy) ...
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    const auth = firebase.auth();
-
-    let secondsPlayed = 0;
-    let timerInterval;
-
-    // Khi game bắt đầu thực sự (sau chữ GO)
-    function startCounting() {
-        timerInterval = setInterval(() => {
-            if (gameActive) {
-                secondsPlayed++;
-                document.getElementById('score').innerText = secondsPlayed;
-            }
-        }, 1000);
-    }
-
-    // Hàm gọi khi người chơi thua
-    async function gameOver() {
-        gameActive = false;
-        clearInterval(timerInterval);
-        
-        const user = auth.currentUser;
-        if (!user) return;
-
-        const userRef = db.ref('users/' + user.uid);
-        
-        // 1. Cộng xu (1 giây = 1 xu)
-        await userRef.transaction((data) => {
-            if (data) {
-                data.coins = (data.coins || 0) + secondsPlayed;
-            } else {
-                data = { coins: secondsPlayed, name: user.displayName };
-            }
-            return data;
-        });
-
-        // 2. Cập nhật Bảng xếp hạng (Chỉ lưu nếu là kỷ lục mới)
-        const lbRef = db.ref('leaderboard/' + user.uid);
-        await lbRef.once('value', (snapshot) => {
-            const currentBest = snapshot.val()?.score || 0;
-            if (secondsPlayed > currentBest) {
-                lbRef.set({
-                    name: user.displayName || "Chiến binh",
-                    score: secondsPlayed
-                });
-            }
-        });
-
-        alert("Game Over! Bạn sống được " + secondsPlayed + " giây và nhận được " + secondsPlayed + " xu.");
-        window.location.href = "index.html";
-    }
-
-    // Sửa lại đoạn window.onload để kích hoạt đếm giờ
-    window.onload = () => {
-        setTimeout(() => {
-            goText.classList.add('show-go');
-            setTimeout(() => {
-                goText.style.opacity = '0';
-                gameActive = true;
-                startCounting(); // Bắt đầu đếm giây
-            }, 1000);
-        }, 200);
-    };
-</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sky Dodge - Play</title>
+    <title>SKY DODGE - GAME MODE</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        canvas { background: #1a1a1a; display: block; }
-        
-        /* Chữ GO tự động xuất hiện rồi biến mất */
-        #go-overlay {
-            position: absolute; inset: 0;
-            display: flex; justify-content: center; align-items: center;
-            z-index: 10; pointer-events: none; /* Không chặn click chuột */
+        body { margin: 0; overflow: hidden; background: #1a1a1a; color: white; font-family: sans-serif; touch-action: none; }
+        #game-container { position: relative; width: 100vw; height: 100vh; background: radial-gradient(circle, #2c3e50, #000); }
+        #paddle {
+            position: absolute; bottom: 120px; left: 50%;
+            height: 18px; background: rgba(255, 255, 255, 0.4);
+            border: 2px solid #fff; border-radius: 10px;
+            transform: translateX(-50%); z-index: 100;
         }
-        #go-text {
-            font-family: 'Arial Black', sans-serif;
-            font-size: 150px; color: #8BC34A;
-            text-shadow: 0 0 40px rgba(139, 195, 74, 0.8);
-            opacity: 0;
-            transform: scale(0.5);
-            transition: all 0.5s ease-out;
+        .ui { position: fixed; top: 20px; width: 100%; text-align: center; pointer-events: none; z-index: 200; }
+        .red { color: #ff4d4d; font-weight: bold; font-size: 26px; text-shadow: 0 0 10px rgba(255,77,77,0.5); }
+        .progress-bg { width: 80%; max-width: 300px; height: 15px; background: #333; margin: 10px auto; border-radius: 10px; overflow: hidden; }
+        #bar { height: 100%; width: 0%; background: #4CAF50; transition: 0.1s; }
+        .falling-item { position: absolute; pointer-events: none; filter: drop-shadow(0 0 5px gold); }
+        #msg { 
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            text-align: center; z-index: 300; background: rgba(0,0,0,0.95); padding: 30px; 
+            width: 85%; border: 3px solid #ff4d4d; border-radius: 20px;
         }
-        /* Hiệu ứng hiện ra */
-        .show-go { opacity: 1 !important; transform: scale(1.2) !important; }
+        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+        button { padding: 15px; font-size: 18px; cursor: pointer; border: none; border-radius: 10px; font-weight: bold; }
+        .btn-retry { background: #ff4d4d; color: white; }
+        .btn-home { background: #2196F3; color: white; }
     </style>
 </head>
 <body>
 
-    <div id="go-overlay">
-        <div id="go-text">GO!</div>
+<div id="game-container">
+    <div class="ui">
+        <div>⏱ Thời gian: <span id="timer">0</span>s</div>
+        <div class="red">Khối lượng: <span id="num">0</span> / 100</div>
+        <div class="progress-bg"><div id="bar"></div></div>
     </div>
+    <div id="paddle"></div>
+    <div id="msg">
+        <h1 style="color:#ff4d4d;">KÍNH VỠ RỒI!</h1>
+        <p id="final-stats" style="font-size: 20px;"></p>
+        <p id="coin-stats" style="color: #ffeb3b; font-weight: bold;"></p>
+        <div class="btn-group">
+            <button class="btn-retry" onclick="location.reload()">CHƠI LẠI</button>
+            <button class="btn-home" onclick="location.href='index.html'">VỀ TRANG CHỦ</button>
+        </div>
+    </div>
+</div>
 
-    <canvas id="gameCanvas"></canvas>
+<script>
+    // 1. NGĂN CHẶN ZOOM (CTRL + CUỘN CHUỘT / PHÍM + -)
+    window.addEventListener('wheel', (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
+    window.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) e.preventDefault();
+    });
 
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const goText = document.getElementById('go-text');
-        let gameActive = false;
+    // 2. CONFIG FIREBASE
+    const firebaseConfig = {
+        apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
+        authDomain: "sky-dodge-8f537.firebaseapp.com",
+        projectId: "sky-dodge-8f537",
+        storageBucket: "sky-dodge-8f537.firebasestorage.app",
+        messagingSenderId: "169224412363",
+        appId: "1:169224412363:web:de0d018158d8b34e854f4e"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+    // 3. BIẾN GAME & RESPONSIVE
+    const paddle = document.getElementById('paddle'), numDisp = document.getElementById('num'), barDisp = document.getElementById('bar');
+    const timerDisp = document.getElementById('timer'), container = document.getElementById('game-container'), msg = document.getElementById('msg');
+    
+    let score = 0, seconds = 0, gameOver = false, baseSpeed = 5;
+    let paddleWidth, itemSize;
+
+    function updateSize() {
+        const isMobile = window.innerWidth < 768;
+        paddleWidth = isMobile ? window.innerWidth * 0.35 : 130;
+        itemSize = isMobile ? window.innerWidth * 0.15 : 65;
+        paddle.style.width = paddleWidth + 'px';
+    }
+    window.addEventListener('resize', updateSize);
+    updateSize();
+
+    // 4. ĐIỀU KHIỂN
+    function movePaddle(x) {
+        if (!gameOver) {
+            let halfWidth = paddle.offsetWidth / 2;
+            let safeX = Math.max(halfWidth, Math.min(x, window.innerWidth - halfWidth));
+            paddle.style.left = safeX + 'px';
         }
-        window.addEventListener('resize', resize);
-        resize();
+    }
+    window.addEventListener('mousemove', (e) => movePaddle(e.clientX));
+    window.addEventListener('touchmove', (e) => { e.preventDefault(); movePaddle(e.touches[0].clientX); }, { passive: false });
 
-        // XỬ LÝ TỰ ĐỘNG HIỆN CHỮ GO
-        window.onload = () => {
-            setTimeout(() => {
-                goText.classList.add('show-go'); // Hiện chữ GO
-                
-                setTimeout(() => {
-                    goText.style.opacity = '0'; // Mờ dần
-                    gameActive = true; // Bắt đầu game
-                    console.log("Game Start!");
-                }, 1000); // Sau 1 giây hiện thì biến mất
-            }, 200); // Đợi 0.2s sau khi load trang cho mượt
-        };
+    // 5. LOGIC GAME
+    const gameTimer = setInterval(() => {
+        if (!gameOver) {
+            seconds++;
+            timerDisp.innerText = seconds;
+            if (seconds % 7 === 0) baseSpeed += 0.8;
+        }
+    }, 1000);
 
-        function gameLoop() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            if (gameActive) {
-                // Vẽ máy bay tạm thời (Duy sẽ viết logic di chuyển ở đây)
-                ctx.fillStyle = "#4CAF50";
-                ctx.fillRect(canvas.width/2 - 25, canvas.height - 100, 50, 50);
+    async function saveGameData() {
+        const user = firebase.auth().currentUser;
+        if (!user) return;
+        const coinsEarned = Math.floor(score / 10);
+        await db.ref('users/' + user.uid + '/coins').transaction(c => (c || 0) + coinsEarned);
+        const lbRef = db.ref('leaderboard/' + user.uid);
+        const snap = await lbRef.once('value');
+        if (seconds > (snap.val()?.score || 0)) {
+            await lbRef.set({ name: user.displayName || user.email.split('@')[0], score: seconds });
+        }
+        document.getElementById('coin-stats').innerText = `+${coinsEarned} Xu nhận được!`;
+    }
+
+    function createItem() {
+        if (gameOver) return;
+        const item = document.createElement('img');
+        item.src = 'https://cdn-icons-png.flaticon.com/512/3113/3113045.png';
+        item.className = 'falling-item';
+        item.style.width = itemSize + 'px';
+        item.style.left = Math.random() * (window.innerWidth - itemSize) + 'px';
+        item.style.top = '-100px';
+        container.appendChild(item);
+
+        let top = -100;
+        const speed = baseSpeed + (Math.random() * 2);
+        const fallInterval = setInterval(() => {
+            if (gameOver) { clearInterval(fallInterval); item.remove(); return; }
+            top += speed;
+            item.style.top = top + 'px';
+            const p = paddle.getBoundingClientRect(), i = item.getBoundingClientRect();
+            if (i.bottom >= p.top && i.right >= p.left && i.left <= p.right && i.top <= p.bottom) {
+                score += 10;
+                numDisp.innerText = score;
+                barDisp.style.width = Math.min(score, 100) + '%';
+                if (score >= 100) {
+                    gameOver = true;
+                    msg.style.display = 'block';
+                    document.getElementById('final-stats').innerText = `Trụ được: ${seconds}s`;
+                    saveGameData();
+                }
+                clearInterval(fallInterval); item.remove();
             }
+            if (top > window.innerHeight) { clearInterval(fallInterval); item.remove(); }
+        }, 20);
+    }
 
-            requestAnimationFrame(gameLoop);
+    function spawnLoop() {
+        if (!gameOver) {
+            createItem();
+            setTimeout(spawnLoop, Math.max(200, 800 - (seconds * 15)));
         }
-
-        gameLoop();
-    </script>
+    }
+    spawnLoop();
+</script>
 </body>
 </html>
