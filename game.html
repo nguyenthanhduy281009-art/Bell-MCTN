@@ -110,11 +110,15 @@
         }
     }, 1000);
 
-    // 6. HÀM LƯU DỮ LIỆU
-    async function saveGameData() {
+   async function saveGameData() {
         const user = auth.currentUser || currentUser;
+        
+        // Hiện thông báo đang xử lý
+        document.getElementById('coin-stats').innerText = "Đang lưu dữ liệu...";
+        document.getElementById('coin-stats').style.color = "#aaa";
+
         if (!user) {
-            console.error("Lỗi: Người dùng chưa đăng nhập!");
+            document.getElementById('coin-stats').innerText = "Lỗi: Bạn chưa đăng nhập!";
             return;
         }
 
@@ -123,19 +127,30 @@
         const name = user.displayName || user.email.split('@')[0];
 
         try {
-            // Cộng xu (1s = 1 xu)
-            await db.ref('users/' + uid + '/coins').transaction(c => (c || 0) + coinsEarned);
-            
-            // Cập nhật BXH
+            // 1. Cộng xu (Dùng transaction để không bị mất xu cũ)
+            await db.ref('users/' + uid + '/coins').transaction((current) => (current || 0) + coinsEarned);
+
+            // 2. Cập nhật Leaderboard
             const lbRef = db.ref('leaderboard/' + uid);
             const snap = await lbRef.once('value');
-            if (seconds > (snap.val()?.score || 0)) {
-                await lbRef.update({ name: name, score: seconds });
+            const oldRecord = snap.val()?.score || 0;
+
+            if (seconds > oldRecord) {
+                await lbRef.update({ 
+                    name: name, 
+                    score: seconds 
+                });
             }
             
+            // 3. Hiển thị kết quả lên màn hình cho Duy thấy
             document.getElementById('coin-stats').innerText = `+${coinsEarned} Xu đã nhận!`;
+            document.getElementById('coin-stats').style.color = "#ffeb3b";
             console.log("Lưu thành công!");
-        } catch (e) { console.error("Lỗi Firebase:", e); }
+
+        } catch (e) { 
+            console.error("Lỗi lưu:", e);
+            document.getElementById('coin-stats').innerText = "Lỗi kết nối Firebase!";
+        }
     }
 
     // 7. TẠO VẬT RƠI
