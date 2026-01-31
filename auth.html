@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sky Dodge - Auth</title>
+    <title>Sky Dodge - Đăng nhập</title>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
     <style>
         body { margin: 0; background: #111; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; }
         .auth-box { background: #222; padding: 25px; border-radius: 12px; width: 85%; max-width: 350px; border: 1px solid #444; }
         input { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #333; background: #000; color: #fff; box-sizing: border-box; }
-        .main-btn { width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .main-btn { width: 100%; padding: 12px; background: #2e7d32; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; }
         .links { display: flex; justify-content: space-between; margin-top: 15px; font-size: 13px; color: #4CAF50; }
         .links span { cursor: pointer; text-decoration: underline; }
     </style>
@@ -21,10 +21,10 @@
         <input type="email" id="email" placeholder="Gmail">
         <input type="password" id="password" placeholder="Mật khẩu">
         <div id="reg-fields" style="display: none;"><input type="text" id="display-name" placeholder="Tên người chơi"></div>
-        <button class="main-btn" id="auth-btn" onclick="handleAuth()">VÀO HỆ THỐNG</button>
+        <button class="main-btn" onclick="handleAuth()">VÀO HỆ THỐNG</button>
         <div class="links">
             <span onclick="forgotPass()">Quên mật khẩu?</span>
-            <span id="mode-toggle" onclick="toggleMode()">Chưa có tài khoản? Đăng ký</span>
+            <span onclick="toggleMode()">Chưa có tài khoản? Đăng ký</span>
         </div>
     </div>
 
@@ -35,7 +35,8 @@
         projectId: "sky-dodge-8f537",
         storageBucket: "sky-dodge-8f537.firebasestorage.app",
         messagingSenderId: "169224412363",
-        appId: "1:169224412363:web:e7160623b367e012854f4e"
+        appId: "1:169224412363:web:e7160623b367e012854f4e",
+        measurementId: "G-ZWQJYLP778"
     };
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
@@ -45,7 +46,6 @@
         isLogin = !isLogin;
         document.getElementById('auth-title').innerText = isLogin ? "ĐĂNG NHẬP" : "ĐĂNG KÝ";
         document.getElementById('reg-fields').style.display = isLogin ? "none" : "block";
-        document.getElementById('auth-btn').innerText = isLogin ? "VÀO HỆ THỐNG" : "TẠO TÀI KHOẢN";
     }
 
     async function handleAuth() {
@@ -59,10 +59,10 @@
                 const name = document.getElementById('display-name').value;
                 const res = await auth.createUserWithEmailAndPassword(email, pass);
                 await res.user.updateProfile({ displayName: name });
-                alert("Đăng ký xong! Hãy đăng nhập.");
-                toggleMode();
+                alert("Đăng ký thành công!");
+                window.location.href = "index.html";
             }
-        } catch (e) { alert(e.message); }
+        } catch (e) { alert("Lỗi Firebase: " + e.message); }
     }
 </script>
 </body>
