@@ -166,7 +166,7 @@ async function saveGameData() {
             item.style.top = top + 'px';
             const p = paddle.getBoundingClientRect(), i = item.getBoundingClientRect();
             if (i.bottom >= p.top && i.right >= p.left && i.left <= p.right && i.top <= p.bottom) {
-                score += 10;
+                score += 1;
                 numDisp.innerText = score;
                 barDisp.style.width = score + '%';
                 if (score >= 100) {
