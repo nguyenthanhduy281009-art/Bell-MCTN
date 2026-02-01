@@ -9,13 +9,20 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <style>
-        /* CSS CHO ĐỒNG XU */
         .coin-icon-small {
-            width: 24px;
-            height: 24px;
-            vertical-align: middle;
-            margin-left: 6px;
-            object-fit: contain;
+    width: 24px;
+    height: 24px;
+    vertical-align: middle;
+    margin-left: 6px;
+    object-fit: contain;
+    
+    /* MẸO XỬ LÝ NỀN TRẮNG: */
+    mix-blend-mode: multiply; /* Hòa trộn màu trắng vào nền trang chủ */
+    filter: contrast(1.2);    /* Làm cho màu vàng của đồng xu đậm và rõ hơn */
+    
+    /* Nếu ảnh đồng xu hình tròn mà bị viền trắng vuông, dùng thêm dòng này: */
+    border-radius: 50%;
+}
             /* Đổ bóng nhẹ để ảnh tách biệt với nền trắng */
             filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
         }
