@@ -9,6 +9,17 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <style>
+        /* CSS CHO ĐỒNG XU */
+        .coin-icon-small {
+            width: 24px;
+            height: 24px;
+            vertical-align: middle;
+            margin-left: 6px;
+            object-fit: contain;
+            /* Đổ bóng nhẹ để ảnh tách biệt với nền trắng */
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+
         :root {
             --primary-gradient: linear-gradient(135deg, #8BC34A, #2196F3);
             --bg-color: #f8f9fa;
@@ -32,7 +43,7 @@
         }
         .logout-btn:hover { background: #ffeded; color: #f44336; border-color: #f44336; }
         .user-info { padding: 0 40px; }
-        .user-info p { margin: 5px 0; font-size: 18px; color: #555; }
+        .user-info p { margin: 5px 0; font-size: 18px; color: #555; display: flex; align-items: center; }
         .user-info b { color: #2196F3; }
         .main-action { flex: 1; display: flex; justify-content: center; align-items: center; }
         .play-btn {
@@ -71,8 +82,8 @@
     </div>
 
     <div class="user-info">
-        <p>Chào mừng chiến binh: <b id="user-name">...</b></p>
-        <p>Số xu: <b id="user-coins">0</b></p>
+        <p>Chào mừng chiến binh: &nbsp;<b id="user-name">...</b></p>
+        <p>Số xu: &nbsp;<b id="user-coins">0</b></p>
     </div>
 
     <div class="main-action">
@@ -98,8 +109,10 @@
     };
     
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-
     const db = firebase.database();
+
+    // Link ảnh đồng xu từ Drive của Duy
+    const coinImgURL = 'https://lh3.googleusercontent.com/d/13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H';
 
     async function smartRedirect(url, message) {
         try {
@@ -120,9 +133,10 @@
             document.getElementById('main-content').style.display = 'flex';
             document.getElementById('user-name').innerText = user.displayName || user.email.split('@')[0];
 
-            // Lắng nghe số xu thời gian thực
             db.ref('users/' + user.uid + '/coins').on('value', (snapshot) => {
-                document.getElementById('user-coins').innerText = snapshot.val() || 0;
+                const coins = snapshot.val() || 0;
+                // THÊM HÌNH ĐỒNG XU VÀO SAU SỐ DƯ
+                document.getElementById('user-coins').innerHTML = `${coins} <img src="${coinImgURL}" class="coin-icon-small">`;
             });
         } else {
             window.location.href = "auth.html";
