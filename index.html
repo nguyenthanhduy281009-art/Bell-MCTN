@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sky Dodge - Trang chủ</title>
@@ -54,27 +55,46 @@
         /* 2. THIẾT KẾ NÚT BẮT ĐẦU VỚI KHUNG ẢNH CỦA DUY */
         .main-action { flex: 1; display: flex; justify-content: center; align-items: center; }
         .play-btn {
-            /* THAY LINK KHUNG NÚT CỦA DUY VÀO ĐÂY */
-            background: url('LINK_ANH_KHUNG_NUT_CỦA_DUY') no-repeat center center;
-            background-size: 100% 100%;
-            width: 280px; 
-            height: 85px;
-            border: none;
-            cursor: pointer;
-            transition: 0.3s;
-            
-            /* CHỮ ĐÈ LÊN ẢNH */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: #2e7d32; /* Màu xanh đậm cho nổi trên khung */
-            font-size: 22px;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            padding-bottom: 5px; /* Chỉnh chữ lên xuống cho vừa khung */
-        }
-        .play-btn:hover { transform: scale(1.08); filter: brightness(1.1); }
+    /* 1. Tạo hình dáng nút */
+    width: 280px;
+    height: 75px;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    position: relative;
+    transition: 0.2s;
+
+    /* 2. Màu sắc 3D (Xanh lá đổ bóng) */
+    background: #4CAF50;
+    box-shadow: 0 8px 0 #2e7d32, 0 15px 20px rgba(0,0,0,0.2);
+
+    /* 3. Căn chỉnh chữ */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    /* 4. Chữ siêu đẹp */
+    font-family: 'Segoe UI', sans-serif; /* Hoặc font Luckiest Guy mình gửi lúc nãy */
+    color: white;
+    font-size: 26px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* Hiệu ứng khi di chuột vào (Nút sáng lên) */
+.play-btn:hover {
+    background: #66bb6a;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 0 #388e3c, 0 15px 25px rgba(0,0,0,0.2);
+}
+
+/* Hiệu ứng khi BẤM nút (Nút lún xuống như lò xo) */
+.play-btn:active {
+    transform: translateY(6px);
+    box-shadow: 0 2px 0 #1b5e20, 0 5px 10px rgba(0,0,0,0.2);
+}
 
         .footer-menu {
             display: flex; justify-content: space-around; padding: 25px;
