@@ -2,35 +2,71 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>SKY DODGE - GAME MODE</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background: #1a1a1a; color: white; font-family: sans-serif; touch-action: none; }
-        #game-container { position: relative; width: 100vw; height: 100vh; background: radial-gradient(circle, #2c3e50, #000); }
-        #paddle {
-            position: absolute; bottom: 120px; left: 50%;
-            height: 18px; background: rgba(255, 255, 255, 0.4);
-            border: 2px solid #fff; border-radius: 10px;
-            transform: translateX(-50%); z-index: 100;
-        }
-        .ui { position: fixed; top: 20px; width: 100%; text-align: center; pointer-events: none; z-index: 200; }
-        .red { color: #ff4d4d; font-weight: bold; font-size: 26px; text-shadow: 0 0 10px rgba(255,77,77,0.5); }
-        .progress-bg { width: 80%; max-width: 300px; height: 15px; background: #333; margin: 10px auto; border-radius: 10px; overflow: hidden; }
-        #bar { height: 100%; width: 0%; background: #4CAF50; transition: 0.1s; }
-        .falling-item { position: absolute; pointer-events: none; filter: drop-shadow(0 0 5px gold); }
-        #msg { 
-            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-            text-align: center; z-index: 300; background: rgba(0,0,0,0.95); padding: 30px; 
-            width: 85%; border: 3px solid #ff4d4d; border-radius: 20px;
-        }
-        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
-        button { padding: 15px; font-size: 18px; cursor: pointer; border: none; border-radius: 10px; font-weight: bold; }
-        .btn-retry { background: #ff4d4d; color: white; }
-        .btn-home { background: #2196F3; color: white; }
-    </style>
+    body { margin: 0; overflow: hidden; background: #1a1a1a; color: white; font-family: sans-serif; touch-action: none; }
+    
+    #game-container { 
+        position: relative; 
+        width: 100vw; 
+        height: 100vh; 
+        background: radial-gradient(circle, #2c3e50, #000);
+        overflow: hidden;
+    }
+
+    #paddle {
+        position: absolute; 
+        bottom: 15vh; /* Cách đáy màn hình 15% chiều cao thiết bị */
+        left: 50%;
+        height: 20px; 
+        background: rgba(255, 255, 255, 0.4);
+        border: 2px solid #fff; 
+        border-radius: 10px;
+        transform: translateX(-50%); 
+        z-index: 100;
+        transition: width 0.3s; /* Hiệu ứng khi đổi kích thước */
+    }
+
+    /* UI co giãn theo màn hình */
+    .ui { 
+        position: fixed; 
+        top: 2vh; 
+        width: 100%; 
+        text-align: center; 
+        pointer-events: none; 
+        z-index: 200;
+        font-size: clamp(14px, 4vw, 20px); /* Tự động chỉnh cỡ chữ */
+    }
+
+    .red { color: #ff4d4d; font-weight: bold; font-size: clamp(18px, 6vw, 28px); }
+    
+    .progress-bg { 
+        width: 70vw; 
+        max-width: 400px; 
+        height: 12px; 
+        background: #333; 
+        margin: 10px auto; 
+        border-radius: 10px; 
+        overflow: hidden; 
+    }
+
+    .falling-item { 
+        position: absolute; 
+        pointer-events: none; 
+        filter: drop-shadow(0 0 5px gold); 
+        object-fit: contain;
+    }
+
+    #msg { 
+        display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+        text-align: center; z-index: 300; background: rgba(0,0,0,0.95); padding: 5vw; 
+        width: 80vw; max-width: 400px; border: 3px solid #ff4d4d; border-radius: 20px;
+    }
+</style>
 </head>
 <body>
 
@@ -53,6 +89,36 @@
 </div>
 
 <script>
+    // 1. NGĂN CHẶN PHÓNG TO/NHỎ TUYỆT ĐỐI
+    // Chặn Zoom bằng tổ hợp phím (Ctrl + / Ctrl -) và con lăn chuột
+    window.addEventListener('wheel', (e) => {
+        if (e.ctrlKey) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+
+    window.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
+            e.preventDefault();
+        }
+    });
+
+    // Chặn phóng to bằng 2 ngón tay (Pinch to zoom) trên điện thoại
+    document.addEventListener('touchstart', (e) => {
+        if (e.touches.length > 1) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+
+    // Chặn nhấn đúp để phóng to (Double tap to zoom)
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (e) => {
+        const now = (new Date()).getTime();
+        if (now - lastTouchEnd <= 300) {
+            e.preventDefault();
+        }
+        lastTouchEnd = now;
+    }, false);
     // 1. CONFIG FIREBASE (ĐÃ THÊM DATABASE URL CHUẨN ĐỊA CHỈ)
     const firebaseConfig = {
         apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
