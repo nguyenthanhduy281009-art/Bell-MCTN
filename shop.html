@@ -21,7 +21,7 @@
             flex: 1; display: flex; align-items: center;
             overflow-x: auto; scroll-snap-type: x mandatory;
             padding: 0 50px; gap: 30px; 
-            scrollbar-width: none; cursor: grab; /* Hiển thị bàn tay để biết là kéo được */
+            scrollbar-width: none; cursor: grab;
         }
         .carousel-container:active { cursor: grabbing; }
         .carousel-container::-webkit-scrollbar { display: none; }
@@ -33,7 +33,6 @@
         }
         .item-wrapper.active { transform: scale(1.1); }
 
-        /* THẺ CHỨA VÁN */
         .paddle-box {
             width: 200px; height: 120px; background: var(--card);
             border: 2px solid #333; border-radius: 20px;
@@ -46,9 +45,10 @@
         .lock-icon { position: absolute; top: 10px; right: 15px; font-size: 20px; }
 
         .status-label { margin-top: 15px; font-weight: bold; color: #aaa; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; }
-        .price-label { font-size: 18px; font-weight: 900; color: #ffeb3b; margin-top: 5px; }
+        .price-label { font-size: 18px; font-weight: 900; color: #ffeb3b; margin-top: 5px; display: flex; align-items: center; gap: 5px; }
 
-        /* KHUNG CHI TIẾT DƯỚI CÙNG */
+        .coin-img { width: 20px; height: 20px; vertical-align: middle; border-radius: 50%; }
+
         .detail-panel {
             padding: 30px; background: var(--card); border-radius: 30px 30px 0 0;
             box-shadow: 0 -10px 30px rgba(0,0,0,0.5); text-align: center;
@@ -62,7 +62,6 @@
             box-shadow: 0 5px 15px rgba(168, 85, 247, 0.3);
         }
         .btn-upgrade:disabled { background: #444; color: #777; box-shadow: none; cursor: not-allowed; }
-        .btn-upgrade:active { transform: scale(0.95); }
 
         .bottom-nav {
             display: flex; justify-content: space-between; padding: 20px 40px;
@@ -74,16 +73,16 @@
 
     <div style="padding: 20px; text-align: center;">
         <h2 style="margin:0">CỬA HÀNG</h2>
-        <div style="color: #ffeb3b; font-weight: bold;">💰 <span id="my-coins">0</span> Xu</div>
+        <div style="color: #ffeb3b; font-weight: bold; font-size: 20px;" id="coin-display">
+            </div>
     </div>
 
-    <div class="carousel-container" id="carousel">
-        </div>
+    <div class="carousel-container" id="carousel"></div>
 
     <div class="detail-panel">
         <div id="selected-status" style="color:#888; text-transform:uppercase; font-size:12px">Đang xem</div>
         <div id="p-name" style="font-size: 22px; font-weight: bold; margin-top:5px;">Tên Ván</div>
-        <div id="selected-stat" class="stat-highlight">0 kg</div>
+        <div id="selected-stat" class="stat-highlight">0 KG</div>
         <button id="btn-main" class="btn-upgrade" onclick="handleAction()">Nâng cấp</button>
     </div>
 
@@ -93,6 +92,8 @@
     </div>
 
 <script>
+    const coinImg = 'https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100';
+    
     const paddles = [
         { id: 'default', name: 'Ván Gỗ', cap: 100, price: 0, color: '#8d6e63', lv: 0 },
         { id: 'iron', name: 'Ván Sắt', cap: 250, price: 500, color: '#b0bec5', lv: 1 },
@@ -103,34 +104,34 @@
 
     let currentIdx = 0;
     let myMaxLv = parseInt(localStorage.getItem('userMaxLv')) || 0;
-    let myCoins = 1000; // Thay bằng giá trị thực từ Firebase
+    let myCoins = 1000; // Duy thay bằng code lấy từ Firebase nhé
 
-    // --- LOGIC KÉO CHUỘT ---
     const slider = document.getElementById('carousel');
     let isDown = false; let startX; let scrollLeft;
 
     slider.addEventListener('mousedown', (e) => {
-        isDown = true; slider.classList.add('active');
-        startX = e.pageX - slider.offsetLeft;
-        scrollLeft = slider.scrollLeft;
+        isDown = true; startX = e.pageX - slider.offsetLeft; scrollLeft = slider.scrollLeft;
     });
-    slider.addEventListener('mouseleave', () => { isDown = false; });
-    slider.addEventListener('mouseup', () => { isDown = false; });
+    slider.addEventListener('mouseleave', () => isDown = false);
+    slider.addEventListener('mouseup', () => isDown = false);
     slider.addEventListener('mousemove', (e) => {
         if(!isDown) return;
         e.preventDefault();
         const x = e.pageX - slider.offsetLeft;
-        const walk = (x - startX) * 2; // Tốc độ kéo
-        slider.scrollLeft = scrollLeft - walk;
+        slider.scrollLeft = scrollLeft - (x - startX) * 2;
     });
 
     function render() {
+        document.getElementById('coin-display').innerHTML = `${myCoins} <img src="${coinImg}" class="coin-img">`;
+        
         slider.innerHTML = paddles.map((p, i) => `
             <div class="item-wrapper ${i === currentIdx ? 'active' : ''}" onclick="select(${i})">
                 <div class="paddle-box">
                     <div class="paddle-visual" style="background:${p.color}"></div>
                     ${p.lv > myMaxLv ? '<div class="lock-icon">🔒</div>' : ''}
-                    <div class="price-label">${p.lv <= myMaxLv ? 'SỞ HỮU' : p.price + ' Xu'}</div>
+                    <div class="price-label">
+                        ${p.lv <= myMaxLv ? 'SỞ HỮU' : p.price + ' <img src="' + coinImg + '" class="coin-img">'}
+                    </div>
                 </div>
                 <div class="status-label">${p.name}</div>
             </div>
@@ -138,10 +139,7 @@
         updateDetail();
     }
 
-    function select(i) {
-        currentIdx = i;
-        render();
-    }
+    function select(i) { currentIdx = i; render(); }
 
     function updateDetail() {
         const p = paddles[currentIdx];
@@ -162,8 +160,8 @@
             btn.innerText = "NÂNG CẤP";
             btn.disabled = myCoins < p.price;
         } else {
-            statusText.innerText = "Đang bị khóa";
-            btn.innerText = "NÂNG CẤP THEO THỨ TỰ";
+            statusText.innerText = "Bị khóa";
+            btn.innerText = "HÃY MUA VÁN TRƯỚC ĐÓ";
             btn.disabled = true;
         }
     }
@@ -173,14 +171,14 @@
         if (p.lv <= myMaxLv) {
             localStorage.setItem('selectedPaddle', p.id);
         } else {
+            myCoins -= p.price;
             myMaxLv = p.lv;
             localStorage.setItem('userMaxLv', myMaxLv);
-            // Cập nhật số dư xu ở đây
+            // Thêm code update Firebase tại đây
         }
         render();
     }
 
-    document.getElementById('my-coins').innerText = myCoins;
     render();
 </script>
 </body>
