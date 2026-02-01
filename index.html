@@ -15,14 +15,10 @@
             --bg-color: #f8f9fa;
         }
 
-        /* 1. XỬ LÝ ĐỒNG XU MẤT NỀN TRẮNG */
         .coin-icon-small {
-            width: 24px;
-            height: 24px;
-            vertical-align: middle;
-            margin-left: 6px;
-            object-fit: contain;
-            mix-blend-mode: multiply; /* Xóa nền trắng */
+            width: 24px; height: 24px;
+            vertical-align: middle; margin-left: 6px;
+            object-fit: contain; mix-blend-mode: multiply;
             filter: contrast(1.2) drop-shadow(0 2px 4px rgba(0,0,0,0.1));
             border-radius: 50%;
         }
@@ -52,49 +48,20 @@
         .user-info p { margin: 5px 0; font-size: 18px; color: #555; display: flex; align-items: center; }
         .user-info b { color: #2196F3; }
 
-        /* 2. THIẾT KẾ NÚT BẮT ĐẦU VỚI KHUNG ẢNH CỦA DUY */
         .main-action { flex: 1; display: flex; justify-content: center; align-items: center; }
         .play-btn {
-    /* 1. Tạo hình dáng nút */
-    width: 280px;
-    height: 75px;
-    border: none;
-    border-radius: 20px;
-    cursor: pointer;
-    position: relative;
-    transition: 0.2s;
-
-    /* 2. Màu sắc 3D (Xanh lá đổ bóng) */
-    background: #4CAF50;
-    box-shadow: 0 8px 0 #2e7d32, 0 15px 20px rgba(0,0,0,0.2);
-
-    /* 3. Căn chỉnh chữ */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    
-    /* 4. Chữ siêu đẹp */
-    font-family: 'Segoe UI', sans-serif; /* Hoặc font Luckiest Guy mình gửi lúc nãy */
-    color: white;
-    font-size: 26px;
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-}
-
-/* Hiệu ứng khi di chuột vào (Nút sáng lên) */
-.play-btn:hover {
-    background: #66bb6a;
-    transform: translateY(-2px);
-    box-shadow: 0 10px 0 #388e3c, 0 15px 25px rgba(0,0,0,0.2);
-}
-
-/* Hiệu ứng khi BẤM nút (Nút lún xuống như lò xo) */
-.play-btn:active {
-    transform: translateY(6px);
-    box-shadow: 0 2px 0 #1b5e20, 0 5px 10px rgba(0,0,0,0.2);
-}
+            width: 280px; height: 75px;
+            border: none; border-radius: 20px;
+            cursor: pointer; position: relative; transition: 0.2s;
+            background: #4CAF50;
+            box-shadow: 0 8px 0 #2e7d32, 0 15px 20px rgba(0,0,0,0.2);
+            display: flex; justify-content: center; align-items: center;
+            color: white; font-size: 26px; font-weight: 900;
+            text-transform: uppercase; letter-spacing: 2px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .play-btn:hover { background: #66bb6a; transform: translateY(-2px); }
+        .play-btn:active { transform: translateY(6px); box-shadow: 0 2px 0 #1b5e20; }
 
         .footer-menu {
             display: flex; justify-content: space-around; padding: 25px;
@@ -130,13 +97,13 @@
     </div>
 
     <div class="main-action">
-        <button class="play-btn" onclick="smartRedirect('game.html', 'Trò chơi đang được bảo trì!')">BẮT ĐẦU CHƠI</button>
+        <button class="play-btn" onclick="smartRedirect('game.html', 'Trò chơi đang bảo trì!')">BẮT ĐẦU CHƠI</button>
     </div>
 
     <div class="footer-menu">
         <button class="menu-item" onclick="smartRedirect('friends.html', 'Tính năng Bạn bè đang cập nhật!')">Bạn bè</button>
         <button class="menu-item" onclick="smartRedirect('shop.html', 'Cửa hàng đang được xây dựng!')">Cửa hàng</button>
-        <button class="menu-item" onclick="smartRedirect('leaderboard.html', 'Bảng xếp hạng sẽ có sớm!')">Bảng xếp hạng</button>
+        <button class="menu-item" onclick="smartRedirect('leaderboard.html', 'Bảng xếp hạng sẽ có sớm!')">Xếp hạng</button>
     </div>
 </div>
 
@@ -153,40 +120,52 @@
     
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    const auth = firebase.auth();
 
-    // Link ảnh đồng xu từ Drive của Duy (giữ nguyên link cũ)
     const coinImgURL = 'https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100';
 
     async function smartRedirect(url, message) {
         try {
             const response = await fetch(url, { method: 'HEAD' });
-            if (response.ok) {
-                window.location.href = url;
-            } else {
-                alert(message);
-            }
-        } catch (e) {
-            alert(message);
-        }
+            if (response.ok) { window.location.href = url; } 
+            else { alert(message); }
+        } catch (e) { alert(message); }
     }
 
-    firebase.auth().onAuthStateChanged(user => {
+    auth.onAuthStateChanged(user => {
         if (user) {
             document.getElementById('loading').style.display = 'none';
             document.getElementById('main-content').style.display = 'flex';
-            document.getElementById('user-name').innerText = user.displayName || user.email.split('@')[0];
+            
+            // 1. HIỂN THỊ TÊN LÊN GIAO DIỆN
+            const displayName = user.displayName || user.email.split('@')[0];
+            document.getElementById('user-name').innerText = displayName;
 
+            // 2. TỰ ĐỘNG CẬP NHẬT TÊN VÀO DATABASE (Vá lỗi không tìm thấy bạn bè)
+            const userRef = db.ref('users/' + user.uid);
+            userRef.once('value').then(snapshot => {
+                if (!snapshot.exists() || !snapshot.val().name) {
+                    userRef.update({
+                        name: displayName,
+                        coins: snapshot.val()?.coins || 0,
+                        highScore: snapshot.val()?.highScore || 0
+                    });
+                }
+            });
+
+            // 3. LẮNG NGHE SỐ XU
             db.ref('users/' + user.uid + '/coins').on('value', (snapshot) => {
                 const coins = snapshot.val() || 0;
                 document.getElementById('user-coins').innerHTML = `${coins} <img src="${coinImgURL}" class="coin-icon-small">`;
             });
+
         } else {
             window.location.href = "auth.html";
         }
     });
 
     function logout() {
-        firebase.auth().signOut().then(() => window.location.href = "auth.html");
+        auth.signOut().then(() => window.location.href = "auth.html");
     }
 </script>
 </body>
