@@ -8,71 +8,40 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-    body { margin: 0; overflow: hidden; background: #1a1a1a; color: white; font-family: sans-serif; touch-action: none; }
-    
-    #game-container { 
-        position: relative; 
-        width: 100vw; 
-        height: 100vh; 
-        background: radial-gradient(circle, #2c3e50, #000);
-        overflow: hidden;
-    }
+        body { margin: 0; overflow: hidden; background: #1a1a1a; color: white; font-family: sans-serif; touch-action: none; }
+        #game-container { position: relative; width: 100vw; height: 100vh; background: radial-gradient(circle, #2c3e50, #000); overflow: hidden; }
+        
+        #paddle {
+            position: absolute; bottom: 15vh; left: 50%;
+            height: 20px; background: rgba(255, 255, 255, 0.4);
+            border: 2px solid #fff; border-radius: 10px;
+            transform: translateX(-50%); z-index: 100;
+        }
 
-    #paddle {
-        position: absolute; 
-        bottom: 15vh; /* Cách đáy màn hình 15% chiều cao thiết bị */
-        left: 50%;
-        height: 20px; 
-        background: rgba(255, 255, 255, 0.4);
-        border: 2px solid #fff; 
-        border-radius: 10px;
-        transform: translateX(-50%); 
-        z-index: 100;
-        transition: width 0.3s; /* Hiệu ứng khi đổi kích thước */
-    }
+        .ui { position: fixed; top: 2vh; width: 100%; text-align: center; pointer-events: none; z-index: 200; font-size: clamp(14px, 4vw, 20px); }
+        .red { color: #ff4d4d; font-weight: bold; font-size: clamp(18px, 6vw, 28px); }
+        
+        .progress-bg { width: 70vw; max-width: 400px; height: 15px; background: #333; margin: 10px auto; border-radius: 10px; overflow: hidden; border: 1px solid #555; }
+        #bar { height: 100%; width: 0%; background: linear-gradient(90deg, #4CAF50, #8BC34A); transition: width 0.3s ease; }
 
-    /* UI co giãn theo màn hình */
-    .ui { 
-        position: fixed; 
-        top: 2vh; 
-        width: 100%; 
-        text-align: center; 
-        pointer-events: none; 
-        z-index: 200;
-        font-size: clamp(14px, 4vw, 20px); /* Tự động chỉnh cỡ chữ */
-    }
+        .falling-item { position: absolute; pointer-events: none; filter: drop-shadow(0 0 5px gold); object-fit: contain; }
 
-    .red { color: #ff4d4d; font-weight: bold; font-size: clamp(18px, 6vw, 28px); }
-    
-    .progress-bg { 
-        width: 70vw; 
-        max-width: 400px; 
-        height: 12px; 
-        background: #333; 
-        margin: 10px auto; 
-        border-radius: 10px; 
-        overflow: hidden; 
-    }
-
-    .falling-item { 
-        position: absolute; 
-        pointer-events: none; 
-        filter: drop-shadow(0 0 5px gold); 
-        object-fit: contain;
-    }
-
-    #msg { 
-        display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-        text-align: center; z-index: 300; background: rgba(0,0,0,0.95); padding: 5vw; 
-        width: 80vw; max-width: 400px; border: 3px solid #ff4d4d; border-radius: 20px;
-    }
-</style>
+        #msg { 
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            text-align: center; z-index: 300; background: rgba(0,0,0,0.95); padding: 5vw; 
+            width: 80vw; max-width: 400px; border: 3px solid #ff4d4d; border-radius: 20px;
+        }
+        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; pointer-events: auto; }
+        button { padding: 15px; font-size: 18px; cursor: pointer; border: none; border-radius: 10px; font-weight: bold; }
+        .btn-retry { background: #ff4d4d; color: white; }
+        .btn-home { background: #2196F3; color: white; }
+    </style>
 </head>
 <body>
 
 <div id="game-container">
     <div class="ui">
-        <div>⏱ Thời gian: <span id="timer">0</span>s</div>
+        <div>⏱ Thời gian: <span id="timer">0</span>s (Tốc độ: x<span id="speed-factor">1.0</span>)</div>
         <div class="red">Khối lượng: <span id="num">0</span> / 100</div>
         <div class="progress-bg"><div id="bar"></div></div>
     </div>
@@ -89,37 +58,11 @@
 </div>
 
 <script>
-    // 1. NGĂN CHẶN PHÓNG TO/NHỎ TUYỆT ĐỐI
-    // Chặn Zoom bằng tổ hợp phím (Ctrl + / Ctrl -) và con lăn chuột
-    window.addEventListener('wheel', (e) => {
-        if (e.ctrlKey) {
-            e.preventDefault();
-        }
-    }, { passive: false });
+    // 1. CHẶN ZOOM
+    window.addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
+    window.addEventListener('keydown', e => { if (e.ctrlKey && ['+', '-', '=', '0'].includes(e.key)) e.preventDefault(); });
 
-    window.addEventListener('keydown', (e) => {
-        if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
-            e.preventDefault();
-        }
-    });
-
-    // Chặn phóng to bằng 2 ngón tay (Pinch to zoom) trên điện thoại
-    document.addEventListener('touchstart', (e) => {
-        if (e.touches.length > 1) {
-            e.preventDefault();
-        }
-    }, { passive: false });
-
-    // Chặn nhấn đúp để phóng to (Double tap to zoom)
-    let lastTouchEnd = 0;
-    document.addEventListener('touchend', (e) => {
-        const now = (new Date()).getTime();
-        if (now - lastTouchEnd <= 300) {
-            e.preventDefault();
-        }
-        lastTouchEnd = now;
-    }, false);
-    // 1. CONFIG FIREBASE (ĐÃ THÊM DATABASE URL CHUẨN ĐỊA CHỈ)
+    // 2. FIREBASE CONFIG
     const firebaseConfig = {
         apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
         authDomain: "sky-dodge-8f537.firebaseapp.com",
@@ -132,11 +75,10 @@
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const auth = firebase.auth();
-
     let currentUser = null;
     auth.onAuthStateChanged(user => { if (user) currentUser = user; });
 
-    // 2. BIẾN GAME
+    // 3. BIẾN GAME
     const paddle = document.getElementById('paddle'), numDisp = document.getElementById('num'), barDisp = document.getElementById('bar');
     const timerDisp = document.getElementById('timer'), container = document.getElementById('game-container'), msg = document.getElementById('msg');
     
@@ -144,50 +86,49 @@
     let paddleWidth, itemSize;
 
     function updateSize() {
-        const isMobile = window.innerWidth < 768;
-        paddleWidth = isMobile ? window.innerWidth * 0.35 : 130;
-        itemSize = isMobile ? window.innerWidth * 0.15 : 65;
+        const w = window.innerWidth;
+        paddleWidth = w < 768 ? w * 0.35 : 130;
+        itemSize = w < 768 ? w * 0.15 : 65;
         paddle.style.width = paddleWidth + 'px';
     }
     window.addEventListener('resize', updateSize);
     updateSize();
 
-    // 3. ĐIỀU KHIỂN
+    // 4. ĐIỀU KHIỂN
     function movePaddle(x) {
-        if (!gameOver) {
-            let halfWidth = paddle.offsetWidth / 2;
-            let safeX = Math.max(halfWidth, Math.min(x, window.innerWidth - halfWidth));
-            paddle.style.left = safeX + 'px';
-        }
+        if (gameOver) return;
+        let halfWidth = paddle.offsetWidth / 2;
+        let safeX = Math.max(halfWidth, Math.min(x, window.innerWidth - halfWidth));
+        paddle.style.left = safeX + 'px';
     }
-    window.addEventListener('mousemove', (e) => movePaddle(e.clientX));
-    window.addEventListener('touchmove', (e) => { e.preventDefault(); movePaddle(e.touches[0].clientX); }, { passive: false });
+    window.addEventListener('mousemove', e => movePaddle(e.clientX));
+    window.addEventListener('touchmove', e => { e.preventDefault(); movePaddle(e.touches[0].clientX); }, { passive: false });
 
-    // 4. LOGIC GAME
+    // 5. VÒNG LẶP THỜI GIAN & TĂNG TỐC MỖI 7 GIÂY
     const gameTimer = setInterval(() => {
         if (!gameOver) {
             seconds++;
             timerDisp.innerText = seconds;
-            if (seconds % 7 === 0) baseSpeed += 0.8;
+            
+            // Cứ mỗi 7 giây, tăng tốc độ rơi thêm 1 đơn vị
+            if (seconds % 7 === 0) {
+                baseSpeed += 1.2;
+                document.getElementById('speed-factor').innerText = (baseSpeed / 5).toFixed(1);
+            }
         }
     }, 1000);
 
     async function saveGameData() {
         const user = auth.currentUser || currentUser;
         if (!user) return;
-
-        const coinsEarned = seconds; 
-        const uid = user.uid;
-        const name = user.displayName || user.email.split('@')[0];
-
         try {
-            await db.ref('users/' + uid + '/coins').transaction(c => (c || 0) + coinsEarned);
-            const lbRef = db.ref('leaderboard/' + uid);
+            await db.ref('users/' + user.uid + '/coins').transaction(c => (c || 0) + seconds);
+            const lbRef = db.ref('leaderboard/' + user.uid);
             const snap = await lbRef.once('value');
             if (seconds > (snap.val()?.score || 0)) {
-                await lbRef.update({ name: name, score: seconds });
+                await lbRef.update({ name: user.displayName || user.email.split('@')[0], score: seconds });
             }
-            document.getElementById('coin-stats').innerText = `+${coinsEarned} Xu đã nhận!`;
+            document.getElementById('coin-stats').innerText = `+${seconds} Xu đã nhận!`;
         } catch (e) { console.error(e); }
     }
 
@@ -202,33 +143,51 @@
         container.appendChild(item);
 
         let top = -100;
+        // Tốc độ rơi dựa trên baseSpeed đã tăng trưởng
         const speed = baseSpeed + (Math.random() * 2);
+
         const fallInterval = setInterval(() => {
             if (gameOver) { clearInterval(fallInterval); item.remove(); return; }
+            
             top += speed;
             item.style.top = top + 'px';
+            
             const p = paddle.getBoundingClientRect(), i = item.getBoundingClientRect();
             
+            // XỬ LÝ VA CHẠM (HỨNG ĐƯỢC ĐỒ)
             if (i.bottom >= p.top && i.right >= p.left && i.left <= p.right && i.top <= p.bottom) {
-                score += 10;
+                score += 10; // Mỗi lần đụng tăng 10 đơn vị khối lượng
                 numDisp.innerText = score;
                 barDisp.style.width = Math.min(score, 100) + '%';
+                
                 if (score >= 100) {
-                    gameOver = true;
-                    msg.style.display = 'block';
-                    document.getElementById('final-stats').innerText = `Trụ được: ${seconds}s`;
-                    saveGameData();
+                    endGame();
                 }
                 clearInterval(fallInterval); item.remove();
             }
-            if (top > window.innerHeight) { clearInterval(fallInterval); item.remove(); }
+
+            // NẾU RƠI QUÁ MÀN HÌNH (THUA)
+            if (top > window.innerHeight) {
+                endGame();
+                clearInterval(fallInterval); item.remove();
+            }
         }, 20);
+    }
+
+    function endGame() {
+        if (gameOver) return;
+        gameOver = true;
+        msg.style.display = 'block';
+        document.getElementById('final-stats').innerText = `Trụ được: ${seconds}s`;
+        saveGameData();
     }
 
     function spawnLoop() {
         if (!gameOver) {
             createItem();
-            setTimeout(spawnLoop, Math.max(200, 800 - (seconds * 15)));
+            // Tần suất tạo vật rơi cũng nhanh dần theo thời gian
+            let spawnRate = Math.max(250, 900 - (seconds * 12));
+            setTimeout(spawnLoop, spawnRate);
         }
     }
     spawnLoop();
