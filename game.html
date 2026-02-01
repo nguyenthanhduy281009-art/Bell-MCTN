@@ -8,8 +8,30 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background: #1a1a1a; color: white; font-family: sans-serif; touch-action: none; }
-        #game-container { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+        /* CĂN GIỮA TOÀN BỘ MÀN HÌNH */
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #000; 
+            color: white; 
+            font-family: sans-serif; 
+            touch-action: none; 
+            display: flex; 
+            justify-content: center; 
+        }
+
+        /* KHUNG GAME CỐ ĐỊNH TỈ LỆ DỌC */
+        #game-container { 
+            position: relative; 
+            width: 100vw; 
+            height: 100vh; 
+            max-width: 500px; /* PC sẽ bị giới hạn độ rộng ở đây */
+            background: radial-gradient(circle, #2c3e50, #000); 
+            overflow: hidden; 
+            border-left: 1px solid #333;
+            border-right: 1px solid #333;
+        }
+
         #paddle {
             position: absolute;
             bottom: 120px;
@@ -22,15 +44,17 @@
             transform: translateX(-50%);
             z-index: 100;
         }
-        .ui { position: fixed; top: 20px; width: 100%; text-align: center; pointer-events: none; z-index: 200; }
+
+        .ui { position: fixed; top: 20px; width: 100%; max-width: 500px; text-align: center; pointer-events: none; z-index: 200; }
         .red { color: #ff4d4d; font-weight: bold; font-size: 26px; }
         .progress-bg { width: 80%; max-width: 300px; height: 15px; background: #333; margin: 5px auto; border-radius: 10px; overflow: hidden; }
         #bar { height: 100%; width: 0%; background: #4CAF50; transition: 0.1s; }
         .falling-item { position: absolute; width: 70px; pointer-events: none; }
+        
         #msg { 
             display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
             text-align: center; z-index: 300; background: rgba(0,0,0,0.95); padding: 25px; 
-            width: 80%; border: 2px solid red; border-radius: 15px; 
+            width: 80%; max-width: 400px; border: 2px solid red; border-radius: 15px; 
         }
         .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
         button { padding: 15px; font-size: 18px; cursor: pointer; border: none; border-radius: 10px; font-weight: bold; width: 100%; }
@@ -58,7 +82,6 @@
 </div>
 
 <script>
-    // 1. CẤU HÌNH FIREBASE
     const firebaseConfig = {
         apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
         authDomain: "sky-dodge-8f537.firebaseapp.com",
@@ -69,43 +92,37 @@
         appId: "1:169224412363:web:de0d018158d8b34e854f4e"
     };
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    const auth = firebase.auth();
+    const db = firebase.database(), auth = firebase.auth();
 
-    // CHẶN PHÓNG TO THU NHỎ BẰNG PHÍM/CHUỘT
     window.addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
     window.addEventListener('keydown', e => { if (e.ctrlKey && ['+', '-', '=', '0'].includes(e.key)) e.preventDefault(); });
 
-    // 2. BIẾN GAME (GIỮ NGUYÊN)
-    const paddle = document.getElementById('paddle');
-    const numDisp = document.getElementById('num'), barDisp = document.getElementById('bar');
-    const timerDisp = document.getElementById('timer'), container = document.getElementById('game-container');
-    const msg = document.getElementById('msg');
+    const paddle = document.getElementById('paddle'), numDisp = document.getElementById('num'), barDisp = document.getElementById('bar');
+    const timerDisp = document.getElementById('timer'), container = document.getElementById('game-container'), msg = document.getElementById('msg');
     let score = 0, seconds = 0, gameOver = false, baseSpeed = 5;
-    const imgURL = 'https://cdn-icons-png.flaticon.com/512/3113/3113045.png'; // Link ảnh chuẩn
+    const imgURL = 'https://cdn-icons-png.flaticon.com/512/3113/3113045.png';
 
-    // 3. HÀM LƯU DỮ LIỆU CỘNG XU & BXH
     async function saveGameData() {
         const user = auth.currentUser;
         if (!user) return;
-        const uid = user.uid;
-        const name = user.displayName || user.email.split('@')[0];
         try {
-            await db.ref('users/' + uid + '/coins').transaction(c => (c || 0) + seconds);
-            const lbRef = db.ref('leaderboard/' + uid);
+            await db.ref('users/' + user.uid + '/coins').transaction(c => (c || 0) + seconds);
+            const lbRef = db.ref('leaderboard/' + user.uid);
             const snap = await lbRef.once('value');
             if (seconds > (snap.val()?.score || 0)) {
-                await lbRef.update({ name: name, score: seconds });
+                await lbRef.update({ name: user.displayName || user.email.split('@')[0], score: seconds });
             }
             document.getElementById('coin-stats').innerText = `+${seconds} Xu đã nhận!`;
         } catch (e) { console.error(e); }
     }
 
-    // 4. LOGIC ĐIỀU KHIỂN (GIỮ NGUYÊN)
+    // TÍNH TOÁN LẠI VỊ TRÍ CHUỘT THEO KHUNG CỐ ĐỊNH
     function movePaddle(x) {
         if (!gameOver) {
+            let rect = container.getBoundingClientRect();
+            let relativeX = x - rect.left; 
             let halfWidth = paddle.offsetWidth / 2;
-            let safeX = Math.max(halfWidth, Math.min(x, window.innerWidth - halfWidth));
+            let safeX = Math.max(halfWidth, Math.min(relativeX, rect.width - halfWidth));
             paddle.style.left = safeX + 'px';
         }
     }
@@ -113,7 +130,6 @@
     window.addEventListener('touchstart', (e) => movePaddle(e.touches[0].clientX), {passive: false});
     window.addEventListener('touchmove', (e) => { e.preventDefault(); movePaddle(e.touches[0].clientX); }, { passive: false });
 
-    // 5. THỜI GIAN & TĂNG TỐC (GIỮ NGUYÊN)
     const gameTimer = setInterval(() => {
         if (!gameOver) {
             seconds++;
@@ -122,13 +138,13 @@
         }
     }, 1000);
 
-    // 6. TẠO VẬT RƠI (GIỮ NGUYÊN LOGIC CỦA DUY)
     function createItem() {
         if (gameOver) return;
         const item = document.createElement('img');
         item.src = imgURL;
         item.className = 'falling-item';
-        item.style.left = Math.random() * (window.innerWidth - 70) + 'px';
+        // Vật rơi xuất hiện ngẫu nhiên trong độ rộng của khung (rect.width)
+        item.style.left = Math.random() * (container.offsetWidth - 70) + 'px';
         item.style.top = '-100px';
         container.appendChild(item);
         let top = -100;
@@ -147,7 +163,7 @@
                     document.getElementById('final-stats').innerText = `Bạn đã trụ được ${seconds} giây!`;
                     msg.style.display = 'block';
                     paddle.style.background = 'red';
-                    saveGameData(); // GỌI LƯU DỮ LIỆU KHI THẮNG
+                    saveGameData();
                 }
                 clearInterval(fallInterval); item.remove();
             }
