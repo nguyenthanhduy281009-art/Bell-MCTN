@@ -137,23 +137,26 @@
             document.getElementById('loading').style.display = 'none';
             document.getElementById('main-content').style.display = 'flex';
             
-            // 1. HIỂN THỊ TÊN LÊN GIAO DIỆN
+            // 1. Xác định tên hiển thị
             const displayName = user.displayName || user.email.split('@')[0];
             document.getElementById('user-name').innerText = displayName;
 
-            // 2. TỰ ĐỘNG CẬP NHẬT TÊN VÀO DATABASE (Vá lỗi không tìm thấy bạn bè)
+            // 2. TỰ ĐỘNG CẬP NHẬT/VÁ LỖI DATABASE
             const userRef = db.ref('users/' + user.uid);
             userRef.once('value').then(snapshot => {
-                if (!snapshot.exists() || !snapshot.val().name) {
+                const data = snapshot.val();
+                // Nếu chưa có bảng users, hoặc thiếu trường name/email thì cập nhật ngay
+                if (!snapshot.exists() || !data.name || !data.email) {
                     userRef.update({
                         name: displayName,
-                        coins: snapshot.val()?.coins || 0,
-                        highScore: snapshot.val()?.highScore || 0
+                        email: user.email,
+                        coins: data?.coins || 0,
+                        highScore: data?.highScore || 0
                     });
                 }
             });
 
-            // 3. LẮNG NGHE SỐ XU
+            // 3. Lắng nghe số xu thời gian thực
             db.ref('users/' + user.uid + '/coins').on('value', (snapshot) => {
                 const coins = snapshot.val() || 0;
                 document.getElementById('user-coins').innerHTML = `${coins} <img src="${coinImgURL}" class="coin-icon-small">`;
