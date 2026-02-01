@@ -92,6 +92,18 @@
     </div>
 
 <script>
+    // Cấu hình Firebase của Duy
+const firebaseConfig = {
+    apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
+    authDomain: "sky-dodge-8f537.firebaseapp.com",
+    databaseURL: "https://sky-dodge-8f537-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "sky-dodge-8f537",
+    storageBucket: "sky-dodge-8f537.firebasestorage.app",
+    messagingSenderId: "169224412363",
+    appId: "1:169224412363:web:de0d018158d8b34e854f4e"
+};
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const db = firebase.database(), auth = firebase.auth();
     const coinImg = 'https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100';
     
     const paddles = [
@@ -104,7 +116,20 @@
 
     let currentIdx = 0;
     let myMaxLv = parseInt(localStorage.getItem('userMaxLv')) || 0;
-    let myCoins = 1000; // Duy thay bằng code lấy từ Firebase nhé
+    let myCoins = 0; 
+
+// Lắng nghe dữ liệu xu từ Firebase
+auth.onAuthStateChanged(user => {
+    if (user) {
+        db.ref('users/' + user.uid + '/coins').on('value', snapshot => {
+            myCoins = snapshot.val() || 0;
+            render(); // Vẽ lại giao diện khi xu thay đổi
+        });
+    } else {
+        alert("Vui lòng đăng nhập để vào cửa hàng!");
+        location.href = 'index.html';
+    }
+});
 
     const slider = document.getElementById('carousel');
     let isDown = false; let startX; let scrollLeft;
@@ -167,17 +192,20 @@
     }
 
     function handleAction() {
-        const p = paddles[currentIdx];
-        if (p.lv <= myMaxLv) {
-            localStorage.setItem('selectedPaddle', p.id);
-        } else {
-            myCoins -= p.price;
-            myMaxLv = p.lv;
-            localStorage.setItem('userMaxLv', myMaxLv);
-            // Thêm code update Firebase tại đây
-        }
-        render();
+    const p = paddles[currentIdx];
+    const user = auth.currentUser;
+
+    if (p.lv <= myMaxLv) {
+        localStorage.setItem('selectedPaddle', p.id);
+    } else {
+        // Trừ xu trên Firebase
+        db.ref('users/' + user.uid + '/coins').set(myCoins - p.price);
+        
+        myMaxLv = p.lv;
+        localStorage.setItem('userMaxLv', myMaxLv);
     }
+    render();
+}
 
     render();
 </script>
