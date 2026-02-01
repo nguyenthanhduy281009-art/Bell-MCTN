@@ -3,66 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>SKY DODGE - GAME MODE</title>
+    <title> BELL </title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
         body { margin: 0; overflow: hidden; background: #1a1a1a; color: white; font-family: sans-serif; touch-action: none; }
-        #game-container { position: relative; width: 100vw; height: 100vh; background: radial-gradient(circle, #2c3e50, #000); overflow: hidden; }
-        
+        #game-container { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
         #paddle {
-            position: absolute; bottom: 15vh; left: 50%;
-            height: 20px; background: rgba(255, 255, 255, 0.4);
-            border: 2px solid #fff; border-radius: 10px;
-            transform: translateX(-50%); z-index: 100;
+            position: absolute;
+            bottom: 120px;
+            left: 50%;
+            width: 130px;
+            height: 18px;
+            background: rgba(255, 255, 255, 0.4);
+            border: 2px solid #fff;
+            border-radius: 10px;
+            transform: translateX(-50%);
+            z-index: 100;
         }
-
-        .ui { position: fixed; top: 2vh; width: 100%; text-align: center; pointer-events: none; z-index: 200; font-size: clamp(14px, 4vw, 20px); }
-        .red { color: #ff4d4d; font-weight: bold; font-size: clamp(18px, 6vw, 28px); }
-        
-        .progress-bg { width: 70vw; max-width: 400px; height: 15px; background: #333; margin: 10px auto; border-radius: 10px; overflow: hidden; border: 1px solid #555; }
-        #bar { height: 100%; width: 0%; background: linear-gradient(90deg, #4CAF50, #8BC34A); transition: width 0.3s ease; }
-
-        .falling-item { position: absolute; pointer-events: none; filter: drop-shadow(0 0 5px gold); object-fit: contain; }
-
+        .ui { position: fixed; top: 20px; width: 100%; text-align: center; pointer-events: none; z-index: 200; }
+        .red { color: #ff4d4d; font-weight: bold; font-size: 26px; }
+        .progress-bg { width: 80%; max-width: 300px; height: 15px; background: #333; margin: 5px auto; border-radius: 10px; overflow: hidden; }
+        #bar { height: 100%; width: 0%; background: #4CAF50; transition: 0.1s; }
+        .falling-item { position: absolute; width: 70px; pointer-events: none; }
         #msg { 
             display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-            text-align: center; z-index: 300; background: rgba(0,0,0,0.95); padding: 5vw; 
-            width: 80vw; max-width: 400px; border: 3px solid #ff4d4d; border-radius: 20px;
+            text-align: center; z-index: 300; background: rgba(0,0,0,0.95); padding: 25px; 
+            width: 80%; border: 2px solid red; border-radius: 15px; 
         }
-        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; pointer-events: auto; }
-        button { padding: 15px; font-size: 18px; cursor: pointer; border: none; border-radius: 10px; font-weight: bold; }
+        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        button { padding: 15px; font-size: 18px; cursor: pointer; border: none; border-radius: 10px; font-weight: bold; width: 100%; }
         .btn-retry { background: #ff4d4d; color: white; }
         .btn-home { background: #2196F3; color: white; }
     </style>
 </head>
 <body>
-
 <div id="game-container">
     <div class="ui">
-        <div>⏱ Thời gian: <span id="timer">0</span>s (Tốc độ: x<span id="speed-factor">1.0</span>)</div>
+        <div style="font-size: 18px;">⏱ Thời gian: <span id="timer">0</span>s</div>
         <div class="red">Khối lượng: <span id="num">0</span> / 100</div>
         <div class="progress-bg"><div id="bar"></div></div>
     </div>
     <div id="paddle"></div>
     <div id="msg">
-        <h1 style="color:#ff4d4d;">KÍNH VỠ RỒI!</h1>
-        <p id="final-stats" style="font-size: 20px;"></p>
+        <h1 style="color:red; margin-top:0;">KHỐI LƯỢNG QUÁ NẶNG KÍNH VỠ RỒI!</h1>
+        <p id="final-stats" style="font-size: 18px;"></p>
         <p id="coin-stats" style="color: #ffeb3b; font-weight: bold;"></p>
         <div class="btn-group">
-            <button class="btn-retry" onclick="location.reload()">CHƠI LẠI</button>
+            <button class="btn-retry" onclick="location.reload()">QUAY LẠI CHƠI TIẾP</button>
             <button class="btn-home" onclick="location.href='index.html'">VỀ TRANG CHỦ</button>
         </div>
     </div>
 </div>
 
 <script>
-    // 1. CHẶN ZOOM
-    window.addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
-    window.addEventListener('keydown', e => { if (e.ctrlKey && ['+', '-', '=', '0'].includes(e.key)) e.preventDefault(); });
-
-    // 2. FIREBASE CONFIG
+    // 1. CẤU HÌNH FIREBASE
     const firebaseConfig = {
         apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
         authDomain: "sky-dodge-8f537.firebaseapp.com",
@@ -75,119 +71,95 @@
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const auth = firebase.auth();
-    let currentUser = null;
-    auth.onAuthStateChanged(user => { if (user) currentUser = user; });
 
-    // 3. BIẾN GAME
-    const paddle = document.getElementById('paddle'), numDisp = document.getElementById('num'), barDisp = document.getElementById('bar');
-    const timerDisp = document.getElementById('timer'), container = document.getElementById('game-container'), msg = document.getElementById('msg');
-    
+    // CHẶN PHÓNG TO THU NHỎ BẰNG PHÍM/CHUỘT
+    window.addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
+    window.addEventListener('keydown', e => { if (e.ctrlKey && ['+', '-', '=', '0'].includes(e.key)) e.preventDefault(); });
+
+    // 2. BIẾN GAME (GIỮ NGUYÊN)
+    const paddle = document.getElementById('paddle');
+    const numDisp = document.getElementById('num'), barDisp = document.getElementById('bar');
+    const timerDisp = document.getElementById('timer'), container = document.getElementById('game-container');
+    const msg = document.getElementById('msg');
     let score = 0, seconds = 0, gameOver = false, baseSpeed = 5;
-    let paddleWidth, itemSize;
+    const imgURL = 'https://cdn-icons-png.flaticon.com/512/3113/3113045.png'; // Link ảnh chuẩn
 
-    function updateSize() {
-        const w = window.innerWidth;
-        paddleWidth = w < 768 ? w * 0.35 : 130;
-        itemSize = w < 768 ? w * 0.15 : 65;
-        paddle.style.width = paddleWidth + 'px';
-    }
-    window.addEventListener('resize', updateSize);
-    updateSize();
-
-    // 4. ĐIỀU KHIỂN
-    function movePaddle(x) {
-        if (gameOver) return;
-        let halfWidth = paddle.offsetWidth / 2;
-        let safeX = Math.max(halfWidth, Math.min(x, window.innerWidth - halfWidth));
-        paddle.style.left = safeX + 'px';
-    }
-    window.addEventListener('mousemove', e => movePaddle(e.clientX));
-    window.addEventListener('touchmove', e => { e.preventDefault(); movePaddle(e.touches[0].clientX); }, { passive: false });
-
-    // 5. VÒNG LẶP THỜI GIAN & TĂNG TỐC MỖI 7 GIÂY
-    const gameTimer = setInterval(() => {
-        if (!gameOver) {
-            seconds++;
-            timerDisp.innerText = seconds;
-            
-            // Cứ mỗi 7 giây, tăng tốc độ rơi thêm 1 đơn vị
-            if (seconds % 7 === 0) {
-                baseSpeed += 1.2;
-                document.getElementById('speed-factor').innerText = (baseSpeed / 5).toFixed(1);
-            }
-        }
-    }, 1000);
-
+    // 3. HÀM LƯU DỮ LIỆU CỘNG XU & BXH
     async function saveGameData() {
-        const user = auth.currentUser || currentUser;
+        const user = auth.currentUser;
         if (!user) return;
+        const uid = user.uid;
+        const name = user.displayName || user.email.split('@')[0];
         try {
-            await db.ref('users/' + user.uid + '/coins').transaction(c => (c || 0) + seconds);
-            const lbRef = db.ref('leaderboard/' + user.uid);
+            await db.ref('users/' + uid + '/coins').transaction(c => (c || 0) + seconds);
+            const lbRef = db.ref('leaderboard/' + uid);
             const snap = await lbRef.once('value');
             if (seconds > (snap.val()?.score || 0)) {
-                await lbRef.update({ name: user.displayName || user.email.split('@')[0], score: seconds });
+                await lbRef.update({ name: name, score: seconds });
             }
             document.getElementById('coin-stats').innerText = `+${seconds} Xu đã nhận!`;
         } catch (e) { console.error(e); }
     }
 
+    // 4. LOGIC ĐIỀU KHIỂN (GIỮ NGUYÊN)
+    function movePaddle(x) {
+        if (!gameOver) {
+            let halfWidth = paddle.offsetWidth / 2;
+            let safeX = Math.max(halfWidth, Math.min(x, window.innerWidth - halfWidth));
+            paddle.style.left = safeX + 'px';
+        }
+    }
+    window.addEventListener('mousemove', (e) => movePaddle(e.clientX));
+    window.addEventListener('touchstart', (e) => movePaddle(e.touches[0].clientX), {passive: false});
+    window.addEventListener('touchmove', (e) => { e.preventDefault(); movePaddle(e.touches[0].clientX); }, { passive: false });
+
+    // 5. THỜI GIAN & TĂNG TỐC (GIỮ NGUYÊN)
+    const gameTimer = setInterval(() => {
+        if (!gameOver) {
+            seconds++;
+            timerDisp.innerText = seconds;
+            if (seconds % 7 === 0) baseSpeed += 0.8; 
+        }
+    }, 1000);
+
+    // 6. TẠO VẬT RƠI (GIỮ NGUYÊN LOGIC CỦA DUY)
     function createItem() {
         if (gameOver) return;
         const item = document.createElement('img');
-        item.src = 'https://cdn-icons-png.flaticon.com/512/3113/3113045.png';
+        item.src = imgURL;
         item.className = 'falling-item';
-        item.style.width = itemSize + 'px';
-        item.style.left = Math.random() * (window.innerWidth - itemSize) + 'px';
+        item.style.left = Math.random() * (window.innerWidth - 70) + 'px';
         item.style.top = '-100px';
         container.appendChild(item);
-
         let top = -100;
-        // Tốc độ rơi dựa trên baseSpeed đã tăng trưởng
         const speed = baseSpeed + (Math.random() * 2);
-
         const fallInterval = setInterval(() => {
             if (gameOver) { clearInterval(fallInterval); item.remove(); return; }
-            
             top += speed;
             item.style.top = top + 'px';
-            
             const p = paddle.getBoundingClientRect(), i = item.getBoundingClientRect();
-            
-            // XỬ LÝ VA CHẠM (HỨNG ĐƯỢC ĐỒ)
             if (i.bottom >= p.top && i.right >= p.left && i.left <= p.right && i.top <= p.bottom) {
-                score += 10; // Mỗi lần đụng tăng 10 đơn vị khối lượng
+                score += 10;
                 numDisp.innerText = score;
-                barDisp.style.width = Math.min(score, 100) + '%';
-                
+                barDisp.style.width = score + '%';
                 if (score >= 100) {
-                    endGame();
+                    gameOver = true;
+                    document.getElementById('final-stats').innerText = `Bạn đã trụ được ${seconds} giây!`;
+                    msg.style.display = 'block';
+                    paddle.style.background = 'red';
+                    saveGameData(); // GỌI LƯU DỮ LIỆU KHI THẮNG
                 }
                 clearInterval(fallInterval); item.remove();
             }
-
-            // NẾU RƠI QUÁ MÀN HÌNH (THUA)
-            if (top > window.innerHeight) {
-                endGame();
-                clearInterval(fallInterval); item.remove();
-            }
+            if (top > window.innerHeight) { clearInterval(fallInterval); item.remove(); }
         }, 20);
-    }
-
-    function endGame() {
-        if (gameOver) return;
-        gameOver = true;
-        msg.style.display = 'block';
-        document.getElementById('final-stats').innerText = `Trụ được: ${seconds}s`;
-        saveGameData();
     }
 
     function spawnLoop() {
         if (!gameOver) {
             createItem();
-            // Tần suất tạo vật rơi cũng nhanh dần theo thời gian
-            let spawnRate = Math.max(250, 900 - (seconds * 12));
-            setTimeout(spawnLoop, spawnRate);
+            let nextSpawn = Math.max(250, 850 - (seconds * 12));
+            setTimeout(spawnLoop, nextSpawn);
         }
     }
     spawnLoop();
