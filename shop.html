@@ -1,40 +1,38 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cửa hàng Ván Xịn</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        :root {
-            --primary: #a855f7;
-            --bg: #121212;
-            --card: #1e1e1e;
-        }
+        :root { --primary: #a855f7; --bg: #121212; --card: #1e1e1e; }
         body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background: var(--bg); color: white; margin: 0; 
-            display: flex; flex-direction: column; height: 100vh; overflow: hidden; 
+            font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; 
+            margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; 
         }
 
-        /* THANH TRƯỢT NGANG */
+        /* HEADER & COINS */
+        .header { padding: 20px; text-align: center; }
+        #coin-display { color: #ffeb3b; font-weight: bold; font-size: 22px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .coin-img { width: 24px; height: 24px; border-radius: 50%; }
+
+        /* CAROUSEL TRƯỢT NGANG */
         .carousel-container {
-            flex: 1; display: flex; align-items: center;
-            overflow-x: auto; scroll-snap-type: x mandatory;
-            padding: 0 50px; gap: 30px; 
-            scrollbar-width: none; cursor: grab;
+            flex: 1; display: flex; align-items: center; overflow-x: auto;
+            scroll-snap-type: x mandatory; padding: 0 50px; gap: 30px;
+            scrollbar-width: none; cursor: grab; user-select: none;
         }
-        .carousel-container:active { cursor: grabbing; }
         .carousel-container::-webkit-scrollbar { display: none; }
+        .carousel-container:active { cursor: grabbing; }
 
         .item-wrapper {
             flex: 0 0 220px; scroll-snap-align: center;
-            display: flex; flex-direction: column; align-items: center;
-            transition: transform 0.3s;
+            display: flex; flex-direction: column; align-items: center; transition: 0.3s;
         }
-        .item-wrapper.active { transform: scale(1.1); }
+        .item-wrapper.active { transform: scale(1.15); }
 
         .paddle-box {
             width: 200px; height: 120px; background: var(--card);
@@ -42,16 +40,13 @@
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             position: relative; box-shadow: 0 10px 20px rgba(0,0,0,0.3);
         }
-        .item-wrapper.active .paddle-box { border-color: var(--primary); box-shadow: 0 0 20px rgba(168, 85, 247, 0.4); }
+        .item-wrapper.active .paddle-box { border-color: var(--primary); box-shadow: 0 0 25px rgba(168, 85, 247, 0.4); }
 
         .paddle-visual { width: 140px; height: 14px; border-radius: 7px; margin-bottom: 10px; }
         .lock-icon { position: absolute; top: 10px; right: 15px; font-size: 20px; }
+        .price-label { font-size: 18px; font-weight: 900; color: #ffeb3b; margin-top: 5px; display: flex; align-items: center; gap: 4px; }
 
-        .status-label { margin-top: 15px; font-weight: bold; color: #aaa; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; }
-        .price-label { font-size: 18px; font-weight: 900; color: #ffeb3b; margin-top: 5px; display: flex; align-items: center; gap: 5px; }
-
-        .coin-img { width: 20px; height: 20px; vertical-align: middle; border-radius: 50%; }
-
+        /* DETAIL PANEL */
         .detail-panel {
             padding: 30px; background: var(--card); border-radius: 30px 30px 0 0;
             box-shadow: 0 -10px 30px rgba(0,0,0,0.5); text-align: center;
@@ -60,33 +55,27 @@
 
         .btn-upgrade {
             background: var(--primary); color: white; border: none; 
-            padding: 15px 50px; font-weight: bold; font-size: 18px; 
-            border-radius: 50px; cursor: pointer; transition: 0.3s;
-            box-shadow: 0 5px 15px rgba(168, 85, 247, 0.3);
+            padding: 15px 60px; font-weight: bold; font-size: 18px; 
+            border-radius: 50px; cursor: pointer; transition: 0.2s;
         }
-        .btn-upgrade:disabled { background: #444; color: #777; box-shadow: none; cursor: not-allowed; }
+        .btn-upgrade:disabled { background: #444; color: #777; cursor: not-allowed; }
 
-        .bottom-nav {
-            display: flex; justify-content: space-between; padding: 20px 40px;
-            background: var(--card); font-weight: bold; color: #888;
-        }
+        .bottom-nav { display: flex; justify-content: space-between; padding: 20px 40px; background: var(--card); font-weight: bold; color: #888; }
     </style>
 </head>
 <body>
 
-    <div style="padding: 20px; text-align: center;">
-        <h2 style="margin:0">CỬA HÀNG</h2>
-        <div style="color: #ffeb3b; font-weight: bold; font-size: 20px;" id="coin-display">
-            </div>
+    <div class="header">
+        <h2 style="margin:0 0 10px 0">CỬA HÀNG</h2>
+        <div id="coin-display">0 <img src="https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100" class="coin-img"></div>
     </div>
 
     <div class="carousel-container" id="carousel"></div>
 
     <div class="detail-panel">
-        <div id="selected-status" style="color:#888; text-transform:uppercase; font-size:12px">Đang xem</div>
-        <div id="p-name" style="font-size: 22px; font-weight: bold; margin-top:5px;">Tên Ván</div>
+        <div id="p-name" style="font-size: 22px; font-weight: bold;">Tên Ván</div>
         <div id="selected-stat" class="stat-highlight">0 KG</div>
-        <button id="btn-main" class="btn-upgrade" onclick="handleAction()">Nâng cấp</button>
+        <button id="btn-main" class="btn-upgrade" onclick="handleAction()">ĐANG TẢI...</button>
     </div>
 
     <div class="bottom-nav">
@@ -95,20 +84,19 @@
     </div>
 
 <script>
-    // Cấu hình Firebase của Duy
-const firebaseConfig = {
-    apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
-    authDomain: "sky-dodge-8f537.firebaseapp.com",
-    databaseURL: "https://sky-dodge-8f537-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "sky-dodge-8f537",
-    storageBucket: "sky-dodge-8f537.firebasestorage.app",
-    messagingSenderId: "169224412363",
-    appId: "1:169224412363:web:de0d018158d8b34e854f4e"
-};
-if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-const db = firebase.database(), auth = firebase.auth();
+    const firebaseConfig = {
+        apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
+        authDomain: "sky-dodge-8f537.firebaseapp.com",
+        databaseURL: "https://sky-dodge-8f537-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "sky-dodge-8f537",
+        storageBucket: "sky-dodge-8f537.firebasestorage.app",
+        messagingSenderId: "169224412363",
+        appId: "1:169224412363:web:de0d018158d8b34e854f4e"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database(), auth = firebase.auth();
     const coinImg = 'https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100';
-    
+
     const paddles = [
         { id: 'default', name: 'Ván Gỗ', cap: 100, price: 0, color: '#8d6e63', lv: 0 },
         { id: 'iron', name: 'Ván Sắt', cap: 250, price: 500, color: '#b0bec5', lv: 1 },
@@ -117,51 +105,40 @@ const db = firebase.database(), auth = firebase.auth();
         { id: 'diamond', name: 'Ván Kim Cương', cap: 2500, price: 15000, color: '#4fc3f7', lv: 4 }
     ];
 
-    let currentIdx = 0;
-    let myMaxLv = parseInt(localStorage.getItem('userMaxLv')) || 0;
-    let myCoins = 0; 
+    let currentIdx = 0, myMaxLv = parseInt(localStorage.getItem('userMaxLv')) || 0, myCoins = 0;
 
-// Lắng nghe dữ liệu xu từ Firebase
-auth.onAuthStateChanged(user => {
-    if (user) {
-        db.ref('users/' + user.uid + '/coins').on('value', snapshot => {
-            myCoins = snapshot.val() || 0;
-            render(); // Vẽ lại giao diện khi xu thay đổi
-        });
-    } else {
-        alert("Vui lòng đăng nhập để vào cửa hàng!");
-        location.href = 'index.html';
-    }
-});
-
-    const slider = document.getElementById('carousel');
-    let isDown = false; let startX; let scrollLeft;
-
-    slider.addEventListener('mousedown', (e) => {
-        isDown = true; startX = e.pageX - slider.offsetLeft; scrollLeft = slider.scrollLeft;
+    // LẤY DỮ LIỆU FIREBASE
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            db.ref('users/' + user.uid + '/coins').on('value', s => {
+                myCoins = s.val() || 0;
+                render();
+            });
+        } else { location.href = 'index.html'; }
     });
+
+    // KÉO CHUỘT
+    const slider = document.getElementById('carousel');
+    let isDown = false, startX, scrollLeft;
+    slider.addEventListener('mousedown', e => { isDown = true; startX = e.pageX - slider.offsetLeft; scrollLeft = slider.scrollLeft; });
     slider.addEventListener('mouseleave', () => isDown = false);
     slider.addEventListener('mouseup', () => isDown = false);
-    slider.addEventListener('mousemove', (e) => {
+    slider.addEventListener('mousemove', e => {
         if(!isDown) return;
         e.preventDefault();
-        const x = e.pageX - slider.offsetLeft;
-        slider.scrollLeft = scrollLeft - (x - startX) * 2;
+        slider.scrollLeft = scrollLeft - (e.pageX - slider.offsetLeft - startX) * 2;
     });
 
     function render() {
         document.getElementById('coin-display').innerHTML = `${myCoins} <img src="${coinImg}" class="coin-img">`;
-        
         slider.innerHTML = paddles.map((p, i) => `
             <div class="item-wrapper ${i === currentIdx ? 'active' : ''}" onclick="select(${i})">
                 <div class="paddle-box">
                     <div class="paddle-visual" style="background:${p.color}"></div>
                     ${p.lv > myMaxLv ? '<div class="lock-icon">🔒</div>' : ''}
-                    <div class="price-label">
-                        ${p.lv <= myMaxLv ? 'SỞ HỮU' : p.price + ' <img src="' + coinImg + '" class="coin-img">'}
-                    </div>
+                    <div class="price-label">${p.lv <= myMaxLv ? 'ĐÃ MỞ' : p.price + ' <img src="'+coinImg+'" class="coin-img">'}</div>
                 </div>
-                <div class="status-label">${p.name}</div>
+                <div class="status-label" style="margin-top:10px; font-size:12px; color:#888;">${p.name}</div>
             </div>
         `).join('');
         updateDetail();
@@ -170,47 +147,36 @@ auth.onAuthStateChanged(user => {
     function select(i) { currentIdx = i; render(); }
 
     function updateDetail() {
-        const p = paddles[currentIdx];
-        const statusText = document.getElementById('selected-status');
-        const nameText = document.getElementById('p-name');
-        const statText = document.getElementById('selected-stat');
-        const btn = document.getElementById('btn-main');
-
-        nameText.innerText = p.name;
-        statText.innerText = `${p.cap} KG`;
+        const p = paddles[currentIdx], btn = document.getElementById('btn-main');
+        document.getElementById('p-name').innerText = p.name;
+        document.getElementById('selected-stat').innerText = `${p.cap} KG`;
 
         if (p.lv <= myMaxLv) {
-            statusText.innerText = "Đã sở hữu";
-            btn.innerText = (localStorage.getItem('selectedPaddle') === p.id) ? "ĐANG DÙNG" : "TRANG BỊ";
-            btn.disabled = (localStorage.getItem('selectedPaddle') === p.id);
+            const isEquipped = localStorage.getItem('selectedPaddle') === p.id;
+            btn.innerText = isEquipped ? "ĐANG DÙNG" : "TRANG BỊ";
+            btn.disabled = isEquipped;
         } else if (p.lv === myMaxLv + 1) {
-            statusText.innerText = "Sẵn sàng nâng cấp";
             btn.innerText = "NÂNG CẤP";
             btn.disabled = myCoins < p.price;
         } else {
-            statusText.innerText = "Bị khóa";
-            btn.innerText = "HÃY MUA VÁN TRƯỚC ĐÓ";
+            btn.innerText = "BỊ KHÓA";
             btn.disabled = true;
         }
     }
 
     function handleAction() {
-    const p = paddles[currentIdx];
-    const user = auth.currentUser;
-
-    if (p.lv <= myMaxLv) {
-        localStorage.setItem('selectedPaddle', p.id);
-    } else {
-        // Trừ xu trên Firebase
-        db.ref('users/' + user.uid + '/coins').set(myCoins - p.price);
-        
-        myMaxLv = p.lv;
-        localStorage.setItem('userMaxLv', myMaxLv);
+        const p = paddles[currentIdx], user = auth.currentUser;
+        if (p.lv <= myMaxLv) {
+            localStorage.setItem('selectedPaddle', p.id);
+            render();
+        } else if (myCoins >= p.price) {
+            db.ref('users/' + user.uid + '/coins').set(myCoins - p.price).then(() => {
+                myMaxLv = p.lv;
+                localStorage.setItem('userMaxLv', myMaxLv);
+                render();
+            });
+        }
     }
-    render();
-}
-
-    render();
 </script>
 </body>
 </html>
