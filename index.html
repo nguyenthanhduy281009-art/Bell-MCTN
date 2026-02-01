@@ -9,34 +9,30 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <style>
-        .coin-icon-small {
-    width: 24px;
-    height: 24px;
-    vertical-align: middle;
-    margin-left: 6px;
-    object-fit: contain;
-    
-    /* MẸO XỬ LÝ NỀN TRẮNG: */
-    mix-blend-mode: multiply; /* Hòa trộn màu trắng vào nền trang chủ */
-    filter: contrast(1.2);    /* Làm cho màu vàng của đồng xu đậm và rõ hơn */
-    
-    /* Nếu ảnh đồng xu hình tròn mà bị viền trắng vuông, dùng thêm dòng này: */
-    border-radius: 50%;
-}
-            /* Đổ bóng nhẹ để ảnh tách biệt với nền trắng */
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
-        }
-
         :root {
             --primary-gradient: linear-gradient(135deg, #8BC34A, #2196F3);
             --bg-color: #f8f9fa;
         }
+
+        /* 1. XỬ LÝ ĐỒNG XU MẤT NỀN TRẮNG */
+        .coin-icon-small {
+            width: 24px;
+            height: 24px;
+            vertical-align: middle;
+            margin-left: 6px;
+            object-fit: contain;
+            mix-blend-mode: multiply; /* Xóa nền trắng */
+            filter: contrast(1.2) drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+            border-radius: 50%;
+        }
+
         body {
             font-family: 'Segoe UI', sans-serif;
             margin: 0; background: var(--bg-color);
             height: 100vh; display: flex; flex-direction: column; color: #333;
             overflow: hidden;
         }
+
         .header { display: flex; justify-content: space-between; padding: 25px 40px; align-items: center; }
         .logo { 
             font-size: 36px; font-weight: 900; margin: 0;
@@ -44,23 +40,42 @@
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             letter-spacing: 2px;
         }
+
         .logout-btn {
             background: #fff; border: 1px solid #ddd; padding: 8px 15px;
             border-radius: 20px; cursor: pointer; font-weight: 500; transition: 0.3s;
         }
         .logout-btn:hover { background: #ffeded; color: #f44336; border-color: #f44336; }
+
         .user-info { padding: 0 40px; }
         .user-info p { margin: 5px 0; font-size: 18px; color: #555; display: flex; align-items: center; }
         .user-info b { color: #2196F3; }
+
+        /* 2. THIẾT KẾ NÚT BẮT ĐẦU VỚI KHUNG ẢNH CỦA DUY */
         .main-action { flex: 1; display: flex; justify-content: center; align-items: center; }
         .play-btn {
-            background: var(--primary-gradient); color: white; border: none;
-            padding: 18px 50px; font-size: 28px; font-weight: bold;
-            border-radius: 50px; cursor: pointer;
-            box-shadow: 0 10px 20px rgba(139, 195, 74, 0.3);
-            transition: 0.3s; text-transform: uppercase;
+            /* THAY LINK KHUNG NÚT CỦA DUY VÀO ĐÂY */
+            background: url('LINK_ANH_KHUNG_NUT_CỦA_DUY') no-repeat center center;
+            background-size: 100% 100%;
+            width: 280px; 
+            height: 85px;
+            border: none;
+            cursor: pointer;
+            transition: 0.3s;
+            
+            /* CHỮ ĐÈ LÊN ẢNH */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #2e7d32; /* Màu xanh đậm cho nổi trên khung */
+            font-size: 22px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding-bottom: 5px; /* Chỉnh chữ lên xuống cho vừa khung */
         }
-        .play-btn:hover { transform: translateY(-5px); box-shadow: 0 15px 25px rgba(33, 150, 243, 0.4); }
+        .play-btn:hover { transform: scale(1.08); filter: brightness(1.1); }
+
         .footer-menu {
             display: flex; justify-content: space-around; padding: 25px;
             background: white; border-radius: 30px 30px 0 0;
@@ -71,6 +86,7 @@
             color: #444; cursor: pointer; padding: 10px; transition: 0.3s;
         }
         .menu-item:hover { color: #8BC34A; transform: scale(1.1); }
+
         #loading {
             position: fixed; inset: 0; background: white;
             display: flex; justify-content: center; align-items: center;
@@ -118,8 +134,8 @@
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Link ảnh đồng xu từ Drive của Duy
-    const coinImgURL = 'https://lh3.googleusercontent.com/d/13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H';
+    // Link ảnh đồng xu từ Drive của Duy (giữ nguyên link cũ)
+    const coinImgURL = 'https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100';
 
     async function smartRedirect(url, message) {
         try {
@@ -142,7 +158,6 @@
 
             db.ref('users/' + user.uid + '/coins').on('value', (snapshot) => {
                 const coins = snapshot.val() || 0;
-                // THÊM HÌNH ĐỒNG XU VÀO SAU SỐ DƯ
                 document.getElementById('user-coins').innerHTML = `${coins} <img src="${coinImgURL}" class="coin-icon-small">`;
             });
         } else {
