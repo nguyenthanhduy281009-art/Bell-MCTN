@@ -3,115 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cửa hàng - Sky Dodge</title>
+    <title>Cửa hàng Ván</title>
     <style>
-        :root {
-            --bg-color: #f0f2f5;
-            --primary: #4CAF50;
+        body { font-family: sans-serif; background: #1a1a1a; color: white; margin: 0; display: flex; flex-direction: column; align-items: center; }
+        
+        /* THANH TRƯỢT NGANG */
+        .carousel {
+            display: flex; overflow-x: auto; width: 100%; padding: 40px 0;
+            scroll-snap-type: x mandatory; gap: 20px; scrollbar-width: none;
         }
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            margin: 0; background: var(--bg-color);
-            display: flex; flex-direction: column; height: 100vh;
+        .carousel::-webkit-scrollbar { display: none; }
+        
+        .paddle-item {
+            flex: 0 0 200px; height: 100px; background: #333;
+            border-radius: 15px; scroll-snap-align: center;
+            display: flex; justify-content: center; align-items: center;
+            transition: 0.3s; border: 4px solid transparent; cursor: pointer;
         }
+        .paddle-item.active { border-color: #4CAF50; transform: scale(1.1); box-shadow: 0 0 20px #4CAF50; }
+        .paddle-preview { width: 140px; height: 15px; border-radius: 10px; }
 
-        /* TIÊU ĐỀ */
-        .header { padding: 20px; text-align: center; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .header h1 { margin: 0; color: #333; font-size: 24px; }
-
-        /* DANH SÁCH VẬT PHẨM (Grid Layout giống ảnh mẫu) */
-        .shop-container {
-            flex: 1; display: grid;
-            grid-template-columns: repeat(2, 1fr); /* Chia 2 cột như ảnh */
-            gap: 15px; padding: 20px; overflow-y: auto;
+        /* PHẦN CHỈ SỐ Ở DƯỚI */
+        .info-panel {
+            background: #262626; width: 90%; max-width: 400px; 
+            padding: 20px; border-radius: 20px; text-align: center;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
         }
+        .price-tag { color: #ffeb3b; font-size: 24px; font-weight: bold; margin: 10px 0; }
+        .stat-text { color: #00e5ff; font-size: 18px; margin-bottom: 20px; }
 
-        .item-card {
-            background: white; border-radius: 15px; padding: 15px;
-            text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            border: 2px solid transparent; transition: 0.3s;
-            display: flex; flex-direction: column; align-items: center;
+        .btn-upgrade {
+            background: #4CAF50; color: white; border: none; padding: 15px 40px;
+            font-size: 18px; font-weight: bold; border-radius: 30px; cursor: pointer;
         }
-
-        .item-card.active { border-color: var(--primary); background: #f1f8e9; }
-
-        /* HÌNH ẢNH VÁN */
-        .paddle-preview {
-            width: 100%; height: 40px; border-radius: 10px;
-            margin-bottom: 10px; position: relative;
-        }
-        .lock-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 20px; }
-
-        /* THÔNG TIN CHỈ SỐ */
-        .item-name { font-weight: bold; margin-bottom: 5px; color: #444; }
-        .item-stat { font-size: 13px; color: #2196F3; font-weight: bold; margin-bottom: 10px; }
-
-        /* NÚT BẤM (Nâng cấp/Sử dụng) */
-        .btn-action {
-            width: 100%; padding: 8px; border: none; border-radius: 8px;
-            font-weight: bold; cursor: pointer; transition: 0.2s;
-        }
-        .btn-buy { background: #eee; color: #333; }
-        .btn-use { background: var(--primary); color: white; }
-        .btn-current { background: #9e9e9e; color: white; cursor: default; }
-
-        /* MENU DƯỚI CÙNG */
-        .footer-nav {
-            display: flex; justify-content: space-around;
-            padding: 15px; background: white; border-top: 1px solid #ddd;
-        }
-        .nav-btn { background: none; border: none; font-size: 18px; font-weight: bold; cursor: pointer; color: #333; }
+        .btn-upgrade:disabled { background: #555; cursor: not-allowed; }
+        
+        .nav-bottom { margin-top: 20px; display: flex; gap: 20px; }
     </style>
 </head>
 <body>
 
-    <div class="header"><h1>CỬA HÀNG VÁN</h1></div>
+    <h2>CHỌN VÁN CỦA BẠN</h2>
+    <div style="color:#aaa">Số dư: <span id="my-coins">0</span> Xu</div>
 
-    <div class="shop-container" id="shop-list">
+    <div class="carousel" id="carousel">
         </div>
 
-    <div class="footer-nav">
-        <div class="nav-btn" onclick="location.href='index.html'">Quay lại</div>
-        <div class="nav-btn" style="color: #9e9e9e;">Kho đồ</div>
+    <div class="info-panel">
+        <h3 id="p-name">Tên Ván</h3>
+        <div class="stat-text">Sức chứa: <span id="p-cap">0</span>kg</div>
+        <div class="price-tag" id="p-price">0 Xu</div>
+        <button id="action-btn" class="btn-upgrade" onclick="handleAction()">NÂNG CẤP</button>
+    </div>
+
+    <div class="nav-bottom">
+        <button onclick="location.href='index.html'">Quay lại</button>
     </div>
 
 <script>
-    // Danh sách ván giống trong game.html của Duy
-    const items = [
-        { id: 'default', name: 'Ván Gỗ', cap: 100, price: 0, color: 'rgba(255, 255, 255, 0.4)' },
-        { id: 'iron', name: 'Ván Sắt', cap: 250, price: 500, color: 'linear-gradient(#757575, #212121)' },
-        { id: 'gold', name: 'Ván Vàng', cap: 600, price: 2000, color: 'linear-gradient(#FFD700, #FF8C00)' },
-        { id: 'diamond', name: 'Ván Kim Cương', cap: 1500, price: 5000, color: 'linear-gradient(#00E5FF, #007BFF)' }
+    const paddleData = [
+        { id: 'default', name: 'Ván Gỗ', cap: 100, price: 0, color: '#fff', level: 0 },
+        { id: 'iron', name: 'Ván Sắt', cap: 250, price: 500, color: '#757575', level: 1 },
+        { id: 'gold', name: 'Ván Vàng', cap: 600, price: 2000, color: '#FFD700', level: 2 },
+        { id: 'diamond', name: 'Ván Kim Cương', cap: 1500, price: 5000, color: '#00E5FF', level: 3 }
     ];
 
-    function renderShop() {
-        const container = document.getElementById('shop-list');
-        const selected = localStorage.getItem('selectedPaddle') || 'default';
-        
-        container.innerHTML = items.map(item => {
-            const isSelected = selected === item.id;
-            return `
-                <div class="item-card ${isSelected ? 'active' : ''}">
-                    <div class="paddle-preview" style="background: ${item.color}">
-                        ${item.price > 0 ? '<span class="lock-icon">🔒</span>' : ''}
-                    </div>
-                    <div class="item-name">${item.name}</div>
-                    <div class="item-stat">Sức chứa: ${item.cap}kg</div>
-                    <button class="btn-action ${isSelected ? 'btn-current' : 'btn-use'}" 
-                            onclick="selectPaddle('${item.id}')">
-                        ${isSelected ? 'Đang dùng' : (item.price === 0 ? 'Sử dụng' : item.price + ' Xu')}
-                    </button>
-                </div>
-            `;
-        }).join('');
+    let currentIndex = 0;
+    let myLevel = parseInt(localStorage.getItem('userLevel')) || 0; // Cấp độ ván cao nhất đã mở
+    let myCoins = 0; // Sẽ lấy từ Firebase
+
+    // LẤY XU TỪ FIREBASE (Giả lập hoặc kết nối thật)
+    function loadUserData() {
+        // Duy chèn code lấy coins từ Firebase của Duy vào đây
+        myCoins = 1000; // Ví dụ đang có 1000 xu
+        document.getElementById('my-coins').innerText = myCoins;
+        renderCarousel();
+        updateInfo();
     }
 
-    function selectPaddle(id) {
-        localStorage.setItem('selectedPaddle', id);
-        renderShop();
+    function renderCarousel() {
+        const carousel = document.getElementById('carousel');
+        carousel.innerHTML = paddleData.map((p, index) => `
+            <div class="paddle-item ${index === currentIndex ? 'active' : ''}" onclick="setIndex(${index})">
+                <div class="paddle-preview" style="background: ${p.color}"></div>
+                ${p.level > myLevel ? '<span style="position:absolute">🔒</span>' : ''}
+            </div>
+        `).join('');
     }
 
-    renderShop();
+    function setIndex(index) {
+        currentIndex = index;
+        renderCarousel();
+        updateInfo();
+    }
+
+    function updateInfo() {
+        const p = paddleData[currentIndex];
+        document.getElementById('p-name').innerText = p.name;
+        document.getElementById('p-cap').innerText = p.cap;
+        const btn = document.getElementById('action-btn');
+
+        if (p.level <= myLevel) {
+            document.getElementById('p-price').innerText = "ĐÃ SỞ HỮU";
+            btn.innerText = "SỬ DỤNG";
+            btn.disabled = false;
+        } else if (p.level === myLevel + 1) {
+            document.getElementById('p-price').innerText = p.price + " Xu";
+            btn.innerText = "NÂNG CẤP";
+            btn.disabled = myCoins < p.price;
+        } else {
+            document.getElementById('p-price').innerText = "CHƯA THỂ MỞ";
+            btn.innerText = "BỊ KHÓA";
+            btn.disabled = true;
+        }
+    }
+
+    function handleAction() {
+        const p = paddleData[currentIndex];
+        const btn = document.getElementById('action-btn');
+
+        if (btn.innerText === "SỬ DỤNG") {
+            localStorage.setItem('selectedPaddle', p.id);
+            alert("Đã trang bị " + p.name);
+        } else if (btn.innerText === "NÂNG CẤP") {
+            // Trừ xu và tăng Level
+            myCoins -= p.price;
+            myLevel = p.level;
+            localStorage.setItem('userLevel', myLevel);
+            // Ở đây Duy cần thêm lệnh Update xu lên Firebase
+            loadUserData();
+        }
+    }
+
+    loadUserData();
 </script>
 </body>
 </html>
