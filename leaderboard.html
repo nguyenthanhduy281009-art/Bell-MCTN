@@ -10,23 +10,14 @@
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 20px; text-align: center; }
         .container { max-width: 500px; margin: auto; background: #2c3e50; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 2px solid #8BC34A; }
-        h1 { color: #8BC34A; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(139, 195, 74, 0.3); }
-        
+        h1 { color: #8BC34A; text-transform: uppercase; letter-spacing: 2px; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th { border-bottom: 2px solid #8BC34A; padding: 10px; color: #8BC34A; }
         td { padding: 15px; border-bottom: 1px solid #3e4f5f; }
-        
-        /* Hiệu ứng Top 3 */
         .rank-1 { color: #FFD700; font-weight: bold; font-size: 22px; }
-        .rank-2 { color: #C0C0C0; font-weight: bold; font-size: 18px; }
+        .rank-2 { color: #C0C0C0; font-weight: bold; }
         .rank-3 { color: #CD7F32; font-weight: bold; }
-
-        .back-btn {
-            margin-top: 25px; padding: 12px 30px; background: #8BC34A;
-            color: white; border: none; border-radius: 50px; cursor: pointer;
-            font-weight: bold; transition: 0.3s; width: 100%;
-        }
-        .back-btn:hover { background: #689f38; transform: scale(1.02); }
+        .back-btn { margin-top: 25px; padding: 12px 30px; background: #8BC34A; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; width: 100%; }
     </style>
 </head>
 <body>
@@ -61,14 +52,13 @@
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Lấy dữ liệu từ nhánh 'leaderboard'
+    // Lấy dữ liệu
     db.ref('leaderboard').orderByChild('score').limitToLast(10).on('value', (snapshot) => {
         let list = [];
         snapshot.forEach(child => {
             list.push(child.val());
         });
         
-        // Sắp xếp giảm dần (vì limitToLast lấy từ thấp lên cao)
         list.sort((a, b) => b.score - a.score);
 
         let html = '';
@@ -76,26 +66,18 @@
             html = '<tr><td colspan="3">Chưa có dữ liệu</td></tr>';
         } else {
             list.forEach((user, index) => {
-                let rankClass = '';
-                let rankDisplay = index + 1;
-                
-                if (index === 0) { rankClass = 'rank-1'; rankDisplay = '🥇'; }
-                else if (index === 1) { rankClass = 'rank-2'; rankDisplay = '🥈'; }
-                else if (index === 2) { rankClass = 'rank-3'; rankDisplay = '🥉'; }
+                let rank = index + 1;
+                let rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
+                let rankIcon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : rank;
 
-                html += `
-                    <tr class="${rankClass}">
-                        <td>${rankDisplay}</td>
-                        <td>${user.name || "Ẩn danh"}</td>
-                        <td>${user.score}</td>
-                    </tr>
-                `;
+                html += `<tr class="${rankClass}">
+                    <td>${rankIcon}</td>
+                    <td>${user.name || "Ẩn danh"}</td>
+                    <td>${user.score}</td>
+                </tr>`;
             });
         }
         document.getElementById('leaderboard-body').innerHTML = html;
-    }, (error) => {
-        console.error(error);
-        document.getElementById('leaderboard-body').innerHTML = '<tr><td colspan="3">Lỗi tải dữ liệu</td></tr>';
     });
 </script>
 </body>
