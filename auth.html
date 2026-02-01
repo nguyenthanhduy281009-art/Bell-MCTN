@@ -6,6 +6,7 @@
     <title>Xác thực - SKY DODGE</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
         :root { --primary: #4CAF50; }
         body { font-family: sans-serif; background: #1a1a1a; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
@@ -18,6 +19,7 @@
         button.main { width: 100%; padding: 12px; background: var(--primary); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; }
         .link { margin-top: 15px; font-size: 13px; color: #4CAF50; cursor: pointer; }
         .forgot { display: block; text-align: right; font-size: 12px; color: #888; margin-bottom: 10px; text-decoration: none; cursor: pointer; }
+        #error { color: #ff4d4d; font-size: 12px; margin-top: 10px; min-height: 15px; }
     </style>
 </head>
 <body>
@@ -25,7 +27,7 @@
     <div class="brand-name">SKY DODGE</div>
     <h2 id="title">ĐĂNG NHẬP</h2>
     
-    <input type="text" id="username" placeholder="Tên trong game" style="display: none;">
+    <input type="text" id="username" placeholder="Tên trong game (Duy nhất)" style="display: none;">
     
     <input type="email" id="email" placeholder="Email của bạn">
     
@@ -38,7 +40,7 @@
 
     <button class="main" onclick="handleAuth()" id="btnSubmit">ĐĂNG NHẬP</button>
     
-    <div id="error" style="color: #ff4d4d; font-size: 12px; margin-top: 10px; min-height: 15px;"></div>
+    <div id="error"></div>
     
     <div class="link" onclick="switchMode()" id="toggleTxt">Chưa có tài khoản? Đăng ký ngay</div>
 </div>
@@ -47,14 +49,16 @@
 const firebaseConfig = {
   apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
   authDomain: "sky-dodge-8f537.firebaseapp.com",
+  databaseURL: "https://sky-dodge-8f537-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "sky-dodge-8f537",
   storageBucket: "sky-dodge-8f537.firebasestorage.app",
   messagingSenderId: "169224412363",
-  appId: "1:169224412363:web:de0d018158d8b34e854f4e",
-  measurementId: "G-9NTWMKBC86"
+  appId: "1:169224412363:web:de0d018158d8b34e854f4e"
 };
     
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
 
 let isLogin = true;
 
@@ -69,39 +73,59 @@ function switchMode() {
     document.getElementById("title").innerText = isLogin ? "ĐĂNG NHẬP" : "ĐĂNG KÝ";
     document.getElementById("btnSubmit").innerText = isLogin ? "ĐĂNG NHẬP" : "ĐĂNG KÝ";
     document.getElementById("toggleTxt").innerText = isLogin ? "Chưa có tài khoản? Đăng ký ngay" : "Đã có tài khoản? Đăng nhập";
-    
-    // Hiện ô nhập tên khi đăng ký, ẩn khi đăng nhập
     document.getElementById("username").style.display = isLogin ? "none" : "block";
     document.getElementById("forgotBtn").style.display = isLogin ? "block" : "none";
+    document.getElementById("error").innerText = "";
 }
 
 async function forgotPass() {
     const email = document.getElementById("email").value;
-    if (!email) return alert("Vui lòng nhập Email trước!");
+    if (!email) return alert("Vui lòng nhập Email!");
     try {
-        await firebase.auth().sendPasswordResetEmail(email);
-        alert("Đã gửi link đặt lại mật khẩu vào Email!");
+        await auth.sendPasswordResetEmail(email);
+        alert("Link đặt lại mật khẩu đã được gửi!");
     } catch (e) { alert("Lỗi: " + e.message); }
 }
 
 async function handleAuth() {
-    const email = document.getElementById("email").value;
+    const email = document.getElementById("email").value.trim();
     const pass = document.getElementById("pass").value;
-    const nickname = document.getElementById("username").value;
+    const nickname = document.getElementById("username").value.trim();
     const err = document.getElementById("error");
     
-    if(!email || !pass || (!isLogin && !nickname)) return err.innerText = "Vui lòng điền đủ!";
+    if(!email || !pass || (!isLogin && !nickname)) return err.innerText = "Điền đầy đủ thông tin!";
     err.innerText = "Đang xử lý...";
 
     try {
         if (isLogin) {
-            await firebase.auth().signInWithEmailAndPassword(email, pass);
+            // LOGIN
+            await auth.signInWithEmailAndPassword(email, pass);
             window.location.href = "index.html";
         } else {
-            const res = await firebase.auth().createUserWithEmailAndPassword(email, pass);
-            // Lưu tên vào Profile
+            // REGISTER
+            if (nickname.length < 3) return err.innerText = "Tên ít nhất 3 ký tự!";
+
+            // Kiểm tra tên trùng trong Database
+            const nameCheck = await db.ref('users').orderByChild('name').equalTo(nickname).once('value');
+            if (nameCheck.exists()) {
+                return err.innerText = "Tên này đã có người dùng!";
+            }
+
+            const res = await auth.createUserWithEmailAndPassword(email, pass);
+            
+            // Cập nhật Profile
             await res.user.updateProfile({ displayName: nickname });
-            alert("Đăng ký thành công, chào mừng " + nickname + "!");
+
+            // Khởi tạo dữ liệu người dùng mới
+            await db.ref('users/' + res.user.uid).set({
+                name: nickname,
+                email: email,
+                coins: 0,
+                highScore: 0,
+                createdAt: Date.now()
+            });
+
+            alert("Đăng ký thành công!");
             window.location.href = "index.html";
         }
     } catch (e) { 
