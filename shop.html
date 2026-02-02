@@ -55,11 +55,19 @@
 
     <div class="carousel-container" id="carousel"></div>
 
-    <div class="detail-panel">
-        <div id="p-name" style="font-size: 22px; font-weight: bold;">Tên Ván</div>
-        <div id="selected-stat" class="stat-highlight">0 KG</div>
-        <button id="btn-main" class="btn-upgrade" onclick="handleAction()">ĐANG TẢI...</button>
+   <div class="detail-panel">
+    <div id="p-name" style="font-size: 18px; color: #888; margin-bottom: 5px;">Tên Ván</div>
+    
+    <div class="stat-highlight" style="font-size: 15px; color: #ddd;">
+        Khả năng chống chịu: <span id="cap-value" style="color: var(--primary); font-size: 22px; font-weight: 900;">0 TẤN</span>
     </div>
+
+    <div style="font-size: 14px; color: #aaa; margin-top: 4px;">
+        Kích thước ván: <span id="width-value" style="color: #4fc3f7; font-weight: bold;">0px</span>
+    </div>
+
+    <button id="btn-main" class="btn-upgrade" onclick="handleAction()" style="margin-top: 15px;">ĐANG TẢI...</button>
+</div>
 
     <div class="bottom-nav">
         <div onclick="location.href='index.html'" style="cursor:pointer">QUAY LẠI</div>
@@ -150,27 +158,25 @@
     }
 
     function render() {
-        document.getElementById('coin-display').innerHTML = `${myCoins} <img src="${coinImg}" class="coin-img">`;
-        const list = isInventoryMode ? paddles.filter(p => ownedPaddles.includes(p.id)) : paddles;
+    document.getElementById('coin-display').innerHTML = `${myCoins} <img src="${coinImg}" class="coin-img">`;
+    const list = isInventoryMode ? paddles.filter(p => ownedPaddles.includes(p.id)) : paddles;
 
-        slider.innerHTML = list.map((p) => {
-            const originalIdx = paddles.findIndex(orig => orig.id === p.id);
-            const isOwned = ownedPaddles.includes(p.id);
-            return `
-                <div class="item-wrapper ${originalIdx === currentIdx ? 'active' : ''}" onclick="select(${originalIdx})">
-                    <div class="paddle-box">
-                        <div class="paddle-visual" style="background:${p.color}"></div>
-                        ${!isOwned ? '<div class="lock-icon">🔒</div>' : ''}
-                        <div class="price-label">${isOwned ? 'SỞ HỮU' : p.price + ' <img src="'+coinImg+'" class="coin-img">'}</div>
-                    </div>
-                    <div style="margin-top:10px; font-size:12px; color:#888;">${p.name}</div>
-                    <div class="item-stat-mini">${p.cap} KG</div>
+    slider.innerHTML = list.map((p) => {
+        const originalIdx = paddles.findIndex(orig => orig.id === p.id);
+        const isOwned = ownedPaddles.includes(p.id);
+        return `
+            <div class="item-wrapper ${originalIdx === currentIdx ? 'active' : ''}" onclick="select(${originalIdx})">
+                <div class="paddle-box">
+                    <div class="paddle-visual" style="background:${p.color}"></div>
+                    ${!isOwned ? '<div class="lock-icon">🔒</div>' : ''}
+                    <div class="price-label">${isOwned ? 'SỞ HỮU' : p.price + ' <img src="'+coinImg+'" class="coin-img">'}</div>
                 </div>
-            `;
-        }).join('');
-        updateDetail();
-    }
-
+                <div style="margin-top:10px; font-size:12px; color:#888;">${p.name}</div>
+            </div>
+        `;
+    }).join('');
+    updateDetail();
+}
     function select(i) { currentIdx = i; render(); }
 
     function updateDetail() {
