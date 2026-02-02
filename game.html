@@ -68,6 +68,14 @@
 </div>
 
 <script>
+    <script>
+document.addEventListener('wheel', function (e) {
+    if (e.ctrlKey) {
+        e.preventDefault();
+    }
+}, { passive: false });
+</script>
+
     // CHẶN ZOOM TRIỆT ĐỂ
     document.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
     let lastTouchEnd = 0;
