@@ -11,7 +11,11 @@
     <style>
         .coin-icon { width: 20px; height: 20px; vertical-align: middle; margin-left: 5px; border-radius: 50%; }
         body { margin: 0; overflow: hidden; background: #000; color: white; font-family: sans-serif; touch-action: none; display: flex; justify-content: center; }
-
+        body {
+    touch-action: none; /* Vô hiệu hóa các thao tác mặc định của trình duyệt */
+    user-select: none;  /* Không cho bôi đen văn bản */
+    -webkit-user-select: none;
+}
        #game-container { 
     position: relative; 
     width: 100vw; 
