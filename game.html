@@ -8,35 +8,37 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
+        /* KHÓA CỨNG KHUNG HÌNH CHẶN ZOOM */
         html, body {
-    position: fixed; /* Khóa vị trí trang */
-    overflow: hidden; /* Chặn cuộn */
-    width: 100%;
-    height: 100%;
-    touch-action: none; /* Chặn mọi thao tác zoom/vuốt mặc định */
-}
+            position: fixed;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            touch-action: none; /* Quan trọng nhất để chặn zoom trên di động */
+            background: #000;
+            color: white;
+            font-family: sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            display: flex;
+            justify-content: center;
+        }
 
-#game-container {
-    width: 100vw;
-    height: 100vh;
-    max-width: 500px;
-    margin: 0 auto;
-}
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 500px;
+            background: radial-gradient(circle, #1a1a2e, #000);
+            overflow: hidden;
+            border-left: 1px solid #333;
+            border-right: 1px solid #333;
+        }
+
+        /* VÁN TRƯỢT */
         :root { --glow: transparent; }
-        .coin-icon { width: 20px; height: 20px; vertical-align: middle; margin-left: 5px; border-radius: 50%; }
-        
-        body { 
-            margin: 0; overflow: hidden; background: #000; color: white; 
-            font-family: sans-serif; touch-action: none; display: flex; 
-            justify-content: center; user-select: none; -webkit-user-select: none;
-        }
-
-        #game-container { 
-            position: relative; width: 100vw; height: 100vh; max-width: 500px; 
-            background: radial-gradient(circle, #1a1a2e, #000); 
-            overflow: hidden; border-left: 1px solid #333; border-right: 1px solid #333;
-        }
-
         #paddle {
             position: absolute; bottom: 120px; left: 50%;
             height: 18px; border-radius: 10px;
@@ -45,12 +47,15 @@
             box-shadow: 0 0 15px var(--glow);
         }
 
+        /* GIAO DIỆN UI */
         .ui { position: fixed; top: 20px; width: 100%; max-width: 500px; text-align: center; pointer-events: none; z-index: 200; }
         .red { color: #ff4d4d; font-weight: bold; font-size: 26px; }
         .progress-bg { width: 80%; max-width: 300px; height: 15px; background: #333; margin: 5px auto; border-radius: 10px; overflow: hidden; }
         #bar { height: 100%; width: 0%; background: #4CAF50; transition: 0.1s; }
         .falling-item { position: absolute; width: 60px; pointer-events: none; object-fit: contain; }
-        
+        .coin-icon { width: 20px; height: 20px; vertical-align: middle; margin-left: 5px; border-radius: 50%; }
+
+        /* THÔNG BÁO KẾT THÚC */
         #msg { 
             display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
             text-align: center; z-index: 300; background: rgba(0,0,0,0.95); padding: 25px; 
@@ -82,24 +87,20 @@
 </div>
 
 <script>
-    // Chặn Zoom 2 ngón tay và Double Tap (iPhone/Android)
-document.addEventListener('touchstart', (e) => {
-    if (e.touches.length > 1) e.preventDefault();
-}, { passive: false });
+    // 1. CHỐNG ZOOM TRIỆT ĐỂ (JS)
+    document.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', e => {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) e.preventDefault();
+        lastTouchEnd = now;
+    }, false);
+    window.addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
+    window.addEventListener('keydown', e => {
+        if (e.ctrlKey && ['+', '-', '=', '0'].includes(e.key)) e.preventDefault();
+    });
 
-let lastTouchEnd = 0;
-document.addEventListener('touchend', (e) => {
-    const now = (new Date()).getTime();
-    if (now - lastTouchEnd <= 300) e.preventDefault();
-    lastTouchEnd = now;
-}, false);
-
-// Chặn Ctrl + cuộn chuột và phím +/- (PC)
-window.addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
-window.addEventListener('keydown', e => {
-    if (e.ctrlKey && ['+', '-', '=', '0'].includes(e.key)) e.preventDefault();
-});
-    // 1. CẤU HÌNH FIREBASE (LUÔN ĐỂ ĐẦU TIÊN)
+    // 2. CẤU HÌNH FIREBASE
     const firebaseConfig = {
         apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
         authDomain: "sky-dodge-8f537.firebaseapp.com",
@@ -112,26 +113,17 @@ window.addEventListener('keydown', e => {
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database(), auth = firebase.auth();
 
-    // 2. CHẶN ZOOM
-    document.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
-    let lastTouchEnd = 0;
-    document.addEventListener('touchend', e => {
-        const now = Date.now();
-        if (now - lastTouchEnd <= 300) e.preventDefault();
-        lastTouchEnd = now;
-    }, false);
-
-    // 3. HỆ THỐNG ONLINE/OFFLINE
+    // 3. ONLINE/OFFLINE
     function setupPresence(userId) {
         const userStatusRef = db.ref('/status/' + userId);
-        db.ref('.info/connected').on('value', (snap) => {
+        db.ref('.info/connected').on('value', snap => {
             if (snap.val() === false) return;
             userStatusRef.onDisconnect().set({ state: 'offline', last_changed: firebase.database.ServerValue.TIMESTAMP })
             .then(() => userStatusRef.set({ state: 'online', last_changed: firebase.database.ServerValue.TIMESTAMP }));
         });
     }
 
-    // 4. KHAI BÁO BIẾN GAME
+    // 4. KHỞI TẠO GAME
     const currentMax = parseInt(localStorage.getItem('paddleCapacity')) || 100;
     const currentColor = localStorage.getItem('paddleColor') || 'rgba(255, 255, 255, 0.4)';
     const rawWidth = localStorage.getItem('paddleWidth') || '130';
@@ -142,7 +134,6 @@ window.addEventListener('keydown', e => {
     
     let score = 0, seconds = 0, gameOver = false, baseSpeed = 5;
 
-    // 5. KHỞI TẠO VÁN
     paddle.style.background = currentColor;
     paddle.style.width = currentWidth;
     document.getElementById('max-num').innerText = currentMax;
@@ -155,8 +146,6 @@ window.addEventListener('keydown', e => {
         document.documentElement.style.setProperty('--glow', 'transparent');
     }
 
-    const coinImgURL = 'https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100';
-
     const itemTypes = [
         { url: 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w200', chance: 60, weight: 1, type: 'normal' },
         { url: 'https://drive.google.com/thumbnail?id=17JZiAW3NHJvEg2iN679TdNB_DVlKN7xz&sz=w200', chance: 25, weight: 2, type: 'normal' },
@@ -165,7 +154,6 @@ window.addEventListener('keydown', e => {
         { url: 'https://drive.google.com/thumbnail?id=1IKc60y8Dn1ouIsFFzYw22oIcHM0Oxnjk&sz=w200', chance: 1, weight: 0, type: 'danger' }
     ];
 
-    // 6. LOGIC XỬ LÝ
     auth.onAuthStateChanged(user => {
         if (user) {
             setupPresence(user.uid);
@@ -174,20 +162,7 @@ window.addEventListener('keydown', e => {
         } else { location.href = 'index.html'; }
     });
 
-    async function saveGameData() {
-        const user = auth.currentUser;
-        if (!user) return;
-        try {
-            await db.ref('users/' + user.uid + '/coins').transaction(c => (c || 0) + seconds);
-            const lbRef = db.ref('leaderboard/' + user.uid);
-            const snap = await lbRef.once('value');
-            if (seconds > (snap.val()?.score || 0)) {
-                await lbRef.update({ name: user.displayName || user.email.split('@')[0], score: seconds });
-            }
-            document.getElementById('coin-stats').innerHTML = `+${seconds} Xu <img src="${coinImgURL}" class="coin-icon"> đã nhận!`;
-        } catch (e) { console.error(e); }
-    }
-
+    // 5. DI CHUYỂN VÀ XỬ LÝ VA CHẠM
     function movePaddle(x) {
         if (!gameOver) {
             let rect = container.getBoundingClientRect();
@@ -197,7 +172,6 @@ window.addEventListener('keydown', e => {
             paddle.style.left = safeX + 'px';
         }
     }
-
     window.addEventListener('mousemove', (e) => movePaddle(e.clientX));
     window.addEventListener('touchstart', (e) => movePaddle(e.touches[0].clientX), {passive: false});
     window.addEventListener('touchmove', (e) => { e.preventDefault(); movePaddle(e.touches[0].clientX); }, { passive: false });
@@ -244,6 +218,264 @@ window.addEventListener('keydown', e => {
         msg.style.display = 'block';
         paddle.style.background = 'red';
         saveGameData();
+    }
+
+    async function saveGameData() {
+        const user = auth.currentUser;
+        if (!user) return;
+        try {
+            await db.ref('users/' + user.uid + '/coins').transaction(c => (c || 0) + seconds);
+            const lbRef = db.ref('leaderboard/' + user.uid);
+            const snap = await lbRef.once('value');
+            if (seconds > (snap.val()?.score || 0)) {
+                await lbRef.update({ name: user.displayName || user.email.split('@')[0], score: seconds });
+            }
+            document.getElementById('coin-stats').innerHTML = `+${seconds} Xu <img src="https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100" class="coin-icon"> đã nhận!`;
+        } catch (e) { console.error(e); }
+    }
+
+    function spawnLoop() {
+        if (!gameOver) {
+            createItem();
+            setTimeout(spawnLoop, Math.max(250, 850 - (seconds * 12)));
+        }
+    }
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+    <title> SKY DODGE - GAME </title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        /* KHÓA CỨNG KHUNG HÌNH CHẶN ZOOM */
+        html, body {
+            position: fixed;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            touch-action: none; /* Quan trọng nhất để chặn zoom trên di động */
+            background: #000;
+            color: white;
+            font-family: sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            display: flex;
+            justify-content: center;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 500px;
+            background: radial-gradient(circle, #1a1a2e, #000);
+            overflow: hidden;
+            border-left: 1px solid #333;
+            border-right: 1px solid #333;
+        }
+
+        /* VÁN TRƯỢT */
+        :root { --glow: transparent; }
+        #paddle {
+            position: absolute; bottom: 120px; left: 50%;
+            height: 18px; border-radius: 10px;
+            transform: translateX(-50%); z-index: 100;
+            transition: background 0.3s, width 0.3s, box-shadow 0.3s;
+            box-shadow: 0 0 15px var(--glow);
+        }
+
+        /* GIAO DIỆN UI */
+        .ui { position: fixed; top: 20px; width: 100%; max-width: 500px; text-align: center; pointer-events: none; z-index: 200; }
+        .red { color: #ff4d4d; font-weight: bold; font-size: 26px; }
+        .progress-bg { width: 80%; max-width: 300px; height: 15px; background: #333; margin: 5px auto; border-radius: 10px; overflow: hidden; }
+        #bar { height: 100%; width: 0%; background: #4CAF50; transition: 0.1s; }
+        .falling-item { position: absolute; width: 60px; pointer-events: none; object-fit: contain; }
+        .coin-icon { width: 20px; height: 20px; vertical-align: middle; margin-left: 5px; border-radius: 50%; }
+
+        /* THÔNG BÁO KẾT THÚC */
+        #msg { 
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            text-align: center; z-index: 300; background: rgba(0,0,0,0.95); padding: 25px; 
+            width: 80%; max-width: 400px; border: 2px solid red; border-radius: 15px; 
+        }
+        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        button { padding: 15px; font-size: 18px; cursor: pointer; border: none; border-radius: 10px; font-weight: bold; width: 100%; }
+        .btn-retry { background: #ff4d4d; color: white; }
+        .btn-home { background: #2196F3; color: white; }
+    </style>
+</head>
+<body>
+<div id="game-container">
+    <div class="ui">
+        <div style="font-size: 18px;">⏱ Thời gian: <span id="timer">0</span>s</div>
+        <div class="red">Khối lượng: <span id="num">0</span> / <span id="max-num">100</span></div>
+        <div class="progress-bg"><div id="bar"></div></div>
+    </div>
+    <div id="paddle"></div>
+    <div id="msg">
+        <h1 style="color:red; margin-top:0;">GAME OVER</h1>
+        <p id="final-stats" style="font-size: 18px;"></p>
+        <p id="coin-stats" style="color: #ffeb3b; font-weight: bold;"></p>
+        <div class="btn-group">
+            <button class="btn-retry" onclick="location.reload()">QUAY LẠI CHƠI TIẾP</button>
+            <button class="btn-home" onclick="location.href='index.html'">VỀ TRANG CHỦ</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. CHỐNG ZOOM TRIỆT ĐỂ (JS)
+    document.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', e => {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) e.preventDefault();
+        lastTouchEnd = now;
+    }, false);
+    window.addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
+    window.addEventListener('keydown', e => {
+        if (e.ctrlKey && ['+', '-', '=', '0'].includes(e.key)) e.preventDefault();
+    });
+
+    // 2. CẤU HÌNH FIREBASE
+    const firebaseConfig = {
+        apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
+        authDomain: "sky-dodge-8f537.firebaseapp.com",
+        databaseURL: "https://sky-dodge-8f537-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "sky-dodge-8f537",
+        storageBucket: "sky-dodge-8f537.firebasestorage.app",
+        messagingSenderId: "169224412363",
+        appId: "1:169224412363:web:de0d018158d8b34e854f4e"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database(), auth = firebase.auth();
+
+    // 3. ONLINE/OFFLINE
+    function setupPresence(userId) {
+        const userStatusRef = db.ref('/status/' + userId);
+        db.ref('.info/connected').on('value', snap => {
+            if (snap.val() === false) return;
+            userStatusRef.onDisconnect().set({ state: 'offline', last_changed: firebase.database.ServerValue.TIMESTAMP })
+            .then(() => userStatusRef.set({ state: 'online', last_changed: firebase.database.ServerValue.TIMESTAMP }));
+        });
+    }
+
+    // 4. KHỞI TẠO GAME
+    const currentMax = parseInt(localStorage.getItem('paddleCapacity')) || 100;
+    const currentColor = localStorage.getItem('paddleColor') || 'rgba(255, 255, 255, 0.4)';
+    const rawWidth = localStorage.getItem('paddleWidth') || '130';
+    const currentWidth = rawWidth.includes('vw') ? rawWidth : rawWidth + 'px';
+
+    const paddle = document.getElementById('paddle'), numDisp = document.getElementById('num'), barDisp = document.getElementById('bar');
+    const timerDisp = document.getElementById('timer'), container = document.getElementById('game-container'), msg = document.getElementById('msg');
+    
+    let score = 0, seconds = 0, gameOver = false, baseSpeed = 5;
+
+    paddle.style.background = currentColor;
+    paddle.style.width = currentWidth;
+    document.getElementById('max-num').innerText = currentMax;
+
+    if (currentMax >= 30) {
+        paddle.style.border = "2px solid #fff";
+        document.documentElement.style.setProperty('--glow', currentColor.includes('gradient') ? '#9d00ff' : currentColor);
+    } else {
+        paddle.style.border = "2px solid rgba(255,255,255,0.3)";
+        document.documentElement.style.setProperty('--glow', 'transparent');
+    }
+
+    const itemTypes = [
+        { url: 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w200', chance: 60, weight: 1, type: 'normal' },
+        { url: 'https://drive.google.com/thumbnail?id=17JZiAW3NHJvEg2iN679TdNB_DVlKN7xz&sz=w200', chance: 25, weight: 2, type: 'normal' },
+        { url: 'https://drive.google.com/thumbnail?id=1KeXUOKM47cK2pO6UNCfvygAOiMARMaH1&sz=w200', chance: 10, weight: 3, type: 'normal' },
+        { url: 'https://drive.google.com/thumbnail?id=19ryEq9TvAxEdriBohrz5zrEHY11xkapE&sz=w200', chance: 4, weight: 0.3, type: 'percent' },
+        { url: 'https://drive.google.com/thumbnail?id=1IKc60y8Dn1ouIsFFzYw22oIcHM0Oxnjk&sz=w200', chance: 1, weight: 0, type: 'danger' }
+    ];
+
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            setupPresence(user.uid);
+            spawnLoop();
+            setInterval(() => { if (!gameOver) { seconds++; timerDisp.innerText = seconds; if (seconds % 7 === 0) baseSpeed += 0.8; } }, 1000);
+        } else { location.href = 'index.html'; }
+    });
+
+    // 5. DI CHUYỂN VÀ XỬ LÝ VA CHẠM
+    function movePaddle(x) {
+        if (!gameOver) {
+            let rect = container.getBoundingClientRect();
+            let relativeX = x - rect.left; 
+            let halfWidth = paddle.offsetWidth / 2;
+            let safeX = Math.max(halfWidth, Math.min(relativeX, rect.width - halfWidth));
+            paddle.style.left = safeX + 'px';
+        }
+    }
+    window.addEventListener('mousemove', (e) => movePaddle(e.clientX));
+    window.addEventListener('touchstart', (e) => movePaddle(e.touches[0].clientX), {passive: false});
+    window.addEventListener('touchmove', (e) => { e.preventDefault(); movePaddle(e.touches[0].clientX); }, { passive: false });
+
+    function createItem() {
+        if (gameOver) return;
+        let rand = Math.random() * 100, cumulative = 0, selected = itemTypes[0];
+        for (let t of itemTypes) { cumulative += t.chance; if (rand < cumulative) { selected = t; break; } }
+        
+        const item = document.createElement('img');
+        item.src = selected.url;
+        item.className = 'falling-item';
+        item.style.left = Math.random() * (container.offsetWidth - 60) + 'px';
+        item.style.top = '-100px';
+        container.appendChild(item);
+
+        let top = -100;
+        const speed = baseSpeed + (Math.random() * 2);
+        const fallInterval = setInterval(() => {
+            if (gameOver) { clearInterval(fallInterval); item.remove(); return; }
+            top += speed;
+            item.style.top = top + 'px';
+            const p = paddle.getBoundingClientRect(), i = item.getBoundingClientRect();
+            if (i.bottom >= p.top && i.right >= p.left && i.left <= p.right && i.top <= p.bottom) {
+                clearInterval(fallInterval);
+                item.remove();
+                if (selected.type === 'danger') endGame("CHẠM VẬT CẤM!");
+                else {
+                    score += (selected.type === 'percent') ? Math.round(score * selected.weight) : selected.weight;
+                    numDisp.innerText = score;
+                    barDisp.style.width = Math.min((score / currentMax) * 100, 100) + '%';
+                    if (score >= currentMax) endGame("QUÁ TẢI RỒI!");
+                }
+            }
+            if (top > window.innerHeight) { clearInterval(fallInterval); item.remove(); }
+        }, 20);
+    }
+
+    function endGame(title) {
+        if (gameOver) return;
+        gameOver = true;
+        document.querySelector('#msg h1').innerText = title;
+        document.getElementById('final-stats').innerText = `Bạn đã trụ được ${seconds} giây!`;
+        msg.style.display = 'block';
+        paddle.style.background = 'red';
+        saveGameData();
+    }
+
+    async function saveGameData() {
+        const user = auth.currentUser;
+        if (!user) return;
+        try {
+            await db.ref('users/' + user.uid + '/coins').transaction(c => (c || 0) + seconds);
+            const lbRef = db.ref('leaderboard/' + user.uid);
+            const snap = await lbRef.once('value');
+            if (seconds > (snap.val()?.score || 0)) {
+                await lbRef.update({ name: user.displayName || user.email.split('@')[0], score: seconds });
+            }
+            document.getElementById('coin-stats').innerHTML = `+${seconds} Xu <img src="https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100" class="coin-icon"> đã nhận!`;
+        } catch (e) { console.error(e); }
     }
 
     function spawnLoop() {
