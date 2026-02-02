@@ -13,27 +13,17 @@
             font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; 
             margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; 
         }
-
-        /* HEADER & COINS */
         .header { padding: 20px; text-align: center; }
         #coin-display { color: #ffeb3b; font-weight: bold; font-size: 22px; display: flex; align-items: center; justify-content: center; gap: 8px; }
         .coin-img { width: 24px; height: 24px; border-radius: 50%; }
-
-        /* CAROUSEL */
         .carousel-container {
             flex: 1; display: flex; align-items: center; overflow-x: auto;
             scroll-snap-type: x mandatory; padding: 0 50px; gap: 30px;
             scrollbar-width: none; cursor: grab; user-select: none;
         }
         .carousel-container::-webkit-scrollbar { display: none; }
-        .carousel-container:active { cursor: grabbing; }
-
-        .item-wrapper {
-            flex: 0 0 220px; scroll-snap-align: center;
-            display: flex; flex-direction: column; align-items: center; transition: 0.3s;
-        }
+        .item-wrapper { flex: 0 0 220px; scroll-snap-align: center; display: flex; flex-direction: column; align-items: center; transition: 0.3s; }
         .item-wrapper.active { transform: scale(1.15); }
-
         .paddle-box {
             width: 200px; height: 120px; background: var(--card);
             border: 2px solid #333; border-radius: 20px;
@@ -41,28 +31,18 @@
             position: relative; box-shadow: 0 10px 20px rgba(0,0,0,0.3);
         }
         .item-wrapper.active .paddle-box { border-color: var(--primary); box-shadow: 0 0 25px rgba(168, 85, 247, 0.4); }
-
         .paddle-visual { width: 140px; height: 14px; border-radius: 7px; margin-bottom: 10px; }
         .lock-icon { position: absolute; top: 10px; right: 15px; font-size: 20px; }
         .price-label { font-size: 18px; font-weight: 900; color: #ffeb3b; margin-top: 5px; display: flex; align-items: center; gap: 4px; }
-        
-        /* CHỈ SỐ MINI */
         .item-stat-mini { font-size: 14px; color: var(--primary); font-weight: bold; margin-top: 5px; }
-
-        /* DETAIL PANEL */
-        .detail-panel {
-            padding: 30px; background: var(--card); border-radius: 30px 30px 0 0;
-            box-shadow: 0 -10px 30px rgba(0,0,0,0.5); text-align: center;
-        }
+        .detail-panel { padding: 30px; background: var(--card); border-radius: 30px 30px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,0.5); text-align: center; }
         .stat-highlight { color: var(--primary); font-weight: 900; font-size: 28px; margin: 10px 0; }
-
         .btn-upgrade {
             background: var(--primary); color: white; border: none; 
             padding: 15px 60px; font-weight: bold; font-size: 18px; 
             border-radius: 50px; cursor: pointer; transition: 0.2s;
         }
         .btn-upgrade:disabled { background: #444; color: #777; cursor: not-allowed; }
-
         .bottom-nav { display: flex; justify-content: space-between; padding: 20px 40px; background: var(--card); font-weight: bold; color: #888; }
     </style>
 </head>
@@ -101,11 +81,11 @@
     const coinImg = 'https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100';
 
     const paddles = [
-        { id: 'default', name: 'Ván Gỗ', cap: 100, price: 0, color: '#8d6e63', lv: 0 },
-        { id: 'iron', name: 'Ván Sắt', cap: 250, price: 500, color: '#b0bec5', lv: 1 },
-        { id: 'pink', name: 'Ván Hồng', cap: 450, price: 1200, color: '#f06292', lv: 2 },
-        { id: 'gold', name: 'Ván Vàng', cap: 1000, price: 5000, color: '#ffd54f', lv: 3 },
-        { id: 'diamond', name: 'Ván Kim Cương', cap: 2500, price: 15000, color: '#4fc3f7', lv: 4 }
+        { id: 'default', name: 'Ván Gỗ', cap: 100, price: 0, color: '#8d6e63', width: 130, lv: 0 },
+        { id: 'iron', name: 'Ván Sắt', cap: 250, price: 500, color: '#b0bec5', width: 140, lv: 1 },
+        { id: 'pink', name: 'Ván Hồng', cap: 450, price: 1200, color: '#f06292', width: 145, lv: 2 },
+        { id: 'gold', name: 'Ván Vàng', cap: 1000, price: 5000, color: '#ffd54f', width: 155, lv: 3 },
+        { id: 'diamond', name: 'Ván Kim Cương', cap: 2500, price: 15000, color: '#4fc3f7', width: 170, lv: 4 }
     ];
 
     let currentIdx = 0, myMaxLv = parseInt(localStorage.getItem('userMaxLv')) || 0, myCoins = 0, isInventoryMode = false;
@@ -120,16 +100,6 @@
     });
 
     const slider = document.getElementById('carousel');
-    let isDown = false, startX, scrollLeft;
-    slider.addEventListener('mousedown', e => { isDown = true; startX = e.pageX - slider.offsetLeft; scrollLeft = slider.scrollLeft; });
-    slider.addEventListener('mouseleave', () => isDown = false);
-    slider.addEventListener('mouseup', () => isDown = false);
-    slider.addEventListener('mousemove', e => {
-        if(!isDown) return;
-        e.preventDefault();
-        slider.scrollLeft = scrollLeft - (e.pageX - slider.offsetLeft - startX) * 2;
-    });
-
     function toggleInventory() {
         isInventoryMode = !isInventoryMode;
         document.getElementById('btn-inventory').innerText = isInventoryMode ? "TẤT CẢ" : "KHO ĐỒ";
@@ -141,7 +111,6 @@
     function render() {
         document.getElementById('coin-display').innerHTML = `${myCoins} <img src="${coinImg}" class="coin-img">`;
         const list = isInventoryMode ? paddles.filter(p => p.lv <= myMaxLv) : paddles;
-
         slider.innerHTML = list.map((p) => {
             const originalIdx = paddles.findIndex(orig => orig.id === p.id);
             return `
@@ -151,7 +120,7 @@
                         ${p.lv > myMaxLv ? '<div class="lock-icon">🔒</div>' : ''}
                         <div class="price-label">${p.lv <= myMaxLv ? 'SỞ HỮU' : p.price + ' <img src="'+coinImg+'" class="coin-img">'}</div>
                     </div>
-                    <div class="status-label" style="margin-top:10px; font-size:12px; color:#888;">${p.name}</div>
+                    <div style="margin-top:10px; font-size:12px; color:#888;">${p.name}</div>
                     <div class="item-stat-mini">${p.cap} KG</div>
                 </div>
             `;
@@ -180,15 +149,24 @@
         }
     }
 
+    function equipPaddle(p) {
+        localStorage.setItem('selectedPaddle', p.id);
+        localStorage.setItem('paddleCapacity', p.cap);
+        localStorage.setItem('paddleColor', p.color);
+        localStorage.setItem('paddleWidth', p.width);
+    }
+
     function handleAction() {
         const p = paddles[currentIdx], user = auth.currentUser;
         if (p.lv <= myMaxLv) {
-            localStorage.setItem('selectedPaddle', p.id);
+            equipPaddle(p);
             render();
+            alert("Đã trang bị: " + p.name);
         } else if (myCoins >= p.price) {
             db.ref('users/' + user.uid + '/coins').set(myCoins - p.price).then(() => {
                 myMaxLv = p.lv;
                 localStorage.setItem('userMaxLv', myMaxLv);
+                equipPaddle(p);
                 render();
             });
         }
