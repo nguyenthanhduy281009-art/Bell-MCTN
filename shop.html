@@ -76,75 +76,87 @@
         messagingSenderId: "169224412363",
         appId: "1:169224412363:web:de0d018158d8b34e854f4e"
     };
-    firebase.initializeApp(firebaseConfig);
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database(), auth = firebase.auth();
     const coinImg = 'https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100';
 
+    // DANH SÁCH TẤT CẢ VÁN (Thêm ván mới vào đây)
     const paddles = [
-        { id: 'default', name: 'Ván Gỗ', cap: 100, price: 0, color: '#8d6e63', width: 130, lv: 0 },
-        { id: 'iron', name: 'Ván Sắt', cap: 250, price: 500, color: '#b0bec5', width: 140, lv: 1 },
-        { id: 'pink', name: 'Ván Hồng', cap: 450, price: 1200, color: '#f06292', width: 145, lv: 2 },
-        { id: 'gold', name: 'Ván Vàng', cap: 1000, price: 5000, color: '#ffd54f', width: 155, lv: 3 },
-        { id: 'diamond', name: 'Ván Kim Cương', cap: 2500, price: 15000, color: '#4fc3f7', width: 170, lv: 4 }
+        { id: 'default', name: 'Ván Gỗ', cap: 100, price: 0, color: '#8d6e63', width: 130 },
+        { id: 'iron', name: 'Ván Sắt', cap: 250, price: 500, color: '#b0bec5', width: 140 },
+        { id: 'pink', name: 'Ván Hồng', cap: 450, price: 1200, color: '#f06292', width: 145 },
+        { id: 'gold', name: 'Ván Vàng', cap: 1000, price: 5000, color: '#ffd54f', width: 155 },
+        { id: 'diamond', name: 'Ván Kim Cương', cap: 2500, price: 15000, color: '#4fc3f7', width: 170 }
     ];
 
-    let currentIdx = 0, myMaxLv = parseInt(localStorage.getItem('userMaxLv')) || 0, myCoins = 0, isInventoryMode = false;
+    let currentIdx = 0, myCoins = 0, isInventoryMode = false;
+    let ownedPaddles = JSON.parse(localStorage.getItem('ownedPaddles')) || ['default'];
 
+    // THEO DÕI DỮ LIỆU NGƯỜI DÙNG
     auth.onAuthStateChanged(user => {
         if (user) {
+            // Lấy xu
             db.ref('users/' + user.uid + '/coins').on('value', s => {
                 myCoins = s.val() || 0;
                 render();
             });
+            // Lấy danh sách ván đã mua từ server
+            db.ref('users/' + user.uid + '/ownedPaddles').once('value', s => {
+                if (s.val()) {
+                    ownedPaddles = s.val();
+                    localStorage.setItem('ownedPaddles', JSON.stringify(ownedPaddles));
+                    render();
+                }
+            });
         } else { location.href = 'index.html'; }
     });
 
+    // LOGIC KÉO TRƯỢT (PC & MOBILE)
     const slider = document.getElementById('carousel');
     let isDown = false, startX, scrollLeft;
 
-    // XỬ LÝ CHUỘT (PC)
-    slider.addEventListener('mousedown', e => { 
-        isDown = true; 
-        slider.style.cursor = 'grabbing';
-        startX = e.pageX - slider.offsetLeft; 
-        scrollLeft = slider.scrollLeft; 
-    });
-    slider.addEventListener('mouseleave', () => { isDown = false; slider.style.cursor = 'grab'; });
-    slider.addEventListener('mouseup', () => { isDown = false; slider.style.cursor = 'grab'; });
-    slider.addEventListener('mousemove', e => {
-        if(!isDown) return;
-        e.preventDefault();
-        const x = e.pageX - slider.offsetLeft;
-        const walk = (x - startX) * 2; // Tốc độ lướt
-        slider.scrollLeft = scrollLeft - walk;
-    });
-
-    // XỬ LÝ VUỐT TAY (MOBILE)
-    slider.addEventListener('touchstart', e => {
+    const startAction = (e) => {
         isDown = true;
-        startX = e.touches[0].pageX - slider.offsetLeft;
+        startX = (e.pageX || e.touches[0].pageX) - slider.offsetLeft;
         scrollLeft = slider.scrollLeft;
-    }, {passive: true});
-
-    slider.addEventListener('touchend', () => isDown = false);
-
-    slider.addEventListener('touchmove', e => {
-        if(!isDown) return;
-        const x = e.touches[0].pageX - slider.offsetLeft;
+    };
+    const stopAction = () => isDown = false;
+    const moveAction = (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = (e.pageX || e.touches[0].pageX) - slider.offsetLeft;
         const walk = (x - startX) * 2;
         slider.scrollLeft = scrollLeft - walk;
-    }, {passive: true});
+    };
+
+    slider.addEventListener('mousedown', startAction);
+    slider.addEventListener('touchstart', startAction, {passive: false});
+    window.addEventListener('mouseup', stopAction);
+    window.addEventListener('touchend', stopAction);
+    slider.addEventListener('mousemove', moveAction);
+    slider.addEventListener('touchmove', moveAction, {passive: false});
+
+    function toggleInventory() {
+        isInventoryMode = !isInventoryMode;
+        document.getElementById('btn-inventory').innerText = isInventoryMode ? "TẤT CẢ" : "KHO ĐỒ";
+        document.querySelector('h2').innerText = isInventoryMode ? "KHO ĐỒ" : "CỬA HÀNG";
+        currentIdx = 0;
+        render();
+    }
+
     function render() {
         document.getElementById('coin-display').innerHTML = `${myCoins} <img src="${coinImg}" class="coin-img">`;
-        const list = isInventoryMode ? paddles.filter(p => p.lv <= myMaxLv) : paddles;
+        const list = isInventoryMode ? paddles.filter(p => ownedPaddles.includes(p.id)) : paddles;
+
         slider.innerHTML = list.map((p) => {
             const originalIdx = paddles.findIndex(orig => orig.id === p.id);
+            const isOwned = ownedPaddles.includes(p.id);
             return `
                 <div class="item-wrapper ${originalIdx === currentIdx ? 'active' : ''}" onclick="select(${originalIdx})">
                     <div class="paddle-box">
                         <div class="paddle-visual" style="background:${p.color}"></div>
-                        ${p.lv > myMaxLv ? '<div class="lock-icon">🔒</div>' : ''}
-                        <div class="price-label">${p.lv <= myMaxLv ? 'SỞ HỮU' : p.price + ' <img src="'+coinImg+'" class="coin-img">'}</div>
+                        ${!isOwned ? '<div class="lock-icon">🔒</div>' : ''}
+                        <div class="price-label">${isOwned ? 'SỞ HỮU' : p.price + ' <img src="'+coinImg+'" class="coin-img">'}</div>
                     </div>
                     <div style="margin-top:10px; font-size:12px; color:#888;">${p.name}</div>
                     <div class="item-stat-mini">${p.cap} KG</div>
@@ -158,20 +170,18 @@
 
     function updateDetail() {
         const p = paddles[currentIdx], btn = document.getElementById('btn-main');
-        if(!p) return;
+        if (!p) return;
+        const isOwned = ownedPaddles.includes(p.id);
         document.getElementById('p-name').innerText = p.name;
         document.getElementById('selected-stat').innerText = `${p.cap} KG`;
 
-        if (p.lv <= myMaxLv) {
+        if (isOwned) {
             const isEquipped = localStorage.getItem('selectedPaddle') === p.id;
             btn.innerText = isEquipped ? "ĐANG DÙNG" : "TRANG BỊ";
             btn.disabled = isEquipped;
-        } else if (p.lv === myMaxLv + 1) {
-            btn.innerText = "NÂNG CẤP";
-            btn.disabled = myCoins < p.price;
         } else {
-            btn.innerText = "BỊ KHÓA";
-            btn.disabled = true;
+            btn.innerText = "MUA VÁN";
+            btn.disabled = myCoins < p.price;
         }
     }
 
@@ -184,17 +194,23 @@
 
     function handleAction() {
         const p = paddles[currentIdx], user = auth.currentUser;
-        if (p.lv <= myMaxLv) {
+        if (!p || !user) return;
+        const isOwned = ownedPaddles.includes(p.id);
+
+        if (isOwned) {
             equipPaddle(p);
             render();
             alert("Đã trang bị: " + p.name);
         } else if (myCoins >= p.price) {
-            db.ref('users/' + user.uid + '/coins').set(myCoins - p.price).then(() => {
-                myMaxLv = p.lv;
-                localStorage.setItem('userMaxLv', myMaxLv);
-                equipPaddle(p);
-                render();
-            });
+            if (confirm("Mua " + p.name + " với " + p.price + " xu?")) {
+                db.ref('users/' + user.uid + '/coins').set(myCoins - p.price).then(() => {
+                    ownedPaddles.push(p.id);
+                    db.ref('users/' + user.uid + '/ownedPaddles').set(ownedPaddles);
+                    localStorage.setItem('ownedPaddles', JSON.stringify(ownedPaddles));
+                    equipPaddle(p);
+                    render();
+                });
+            }
         }
     }
 </script>
