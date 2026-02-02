@@ -108,24 +108,6 @@
 </div>
 
 <script>
-    const userStatusDatabaseRef = db.ref('/status/' + auth.currentUser.uid);
-
-// Tạo một kết nối đặc biệt để theo dõi trạng thái online
-db.ref('.info/connected').on('value', (snapshot) => {
-    if (snapshot.val() === false) return;
-
-    // Khi người chơi thoát game (đóng tab/mất mạng)
-    userStatusDatabaseRef.onDisconnect().set({
-        state: 'offline',
-        last_changed: firebase.database.ServerValue.TIMESTAMP
-    }).then(() => {
-        // Khi người chơi đang mở game
-        userStatusDatabaseRef.set({
-            state: 'online',
-            last_changed: firebase.database.ServerValue.TIMESTAMP
-        });
-    });
-});
     const firebaseConfig = {
         apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
         authDomain: "sky-dodge-8f537.firebaseapp.com",
@@ -139,31 +121,35 @@ db.ref('.info/connected').on('value', (snapshot) => {
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const auth = firebase.auth();
-
     const coinImgURL = 'https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100';
-
-    async function smartRedirect(url, message) {
-        try {
-            const response = await fetch(url, { method: 'HEAD' });
-            if (response.ok) { window.location.href = url; } 
-            else { alert(message); }
-        } catch (e) { alert(message); }
-    }
 
     auth.onAuthStateChanged(user => {
         if (user) {
             document.getElementById('loading').style.display = 'none';
             document.getElementById('main-content').style.display = 'flex';
             
-            // 1. Xác định tên hiển thị
+            // --- FIX LỖI: CHỈ CHẠY KHI ĐÃ XÁC THỰC USER ---
+            const userStatusRef = db.ref('/status/' + user.uid);
+            db.ref('.info/connected').on('value', (snapshot) => {
+                if (snapshot.val() === false) return;
+                userStatusRef.onDisconnect().set({
+                    state: 'offline',
+                    last_changed: firebase.database.ServerValue.TIMESTAMP
+                }).then(() => {
+                    userStatusRef.set({
+                        state: 'online',
+                        last_changed: firebase.database.ServerValue.TIMESTAMP
+                    });
+                });
+            });
+            // ----------------------------------------------
+
             const displayName = user.displayName || user.email.split('@')[0];
             document.getElementById('user-name').innerText = displayName;
 
-            // 2. TỰ ĐỘNG CẬP NHẬT/VÁ LỖI DATABASE
             const userRef = db.ref('users/' + user.uid);
             userRef.once('value').then(snapshot => {
                 const data = snapshot.val();
-                // Nếu chưa có bảng users, hoặc thiếu trường name/email thì cập nhật ngay
                 if (!snapshot.exists() || !data.name || !data.email) {
                     userRef.update({
                         name: displayName,
@@ -173,6 +159,35 @@ db.ref('.info/connected').on('value', (snapshot) => {
                     });
                 }
             });
+
+            db.ref('users/' + user.uid + '/coins').on('value', (snapshot) => {
+                const coins = snapshot.val() || 0;
+                document.getElementById('user-coins').innerHTML = `${coins} <img src="${coinImgURL}" class="coin-icon-small">`;
+            });
+
+        } else {
+            window.location.href = "auth.html";
+        }
+    });
+
+    async function smartRedirect(url, message) {
+        try {
+            const response = await fetch(url, { method: 'HEAD' });
+            if (response.ok) { window.location.href = url; } 
+            else { alert(message); }
+        } catch (e) { alert(message); }
+    }
+
+    function logout() {
+        if(auth.currentUser) {
+            db.ref('/status/' + auth.currentUser.uid).set({ state: 'offline' }).then(() => {
+                auth.signOut().then(() => window.location.href = "auth.html");
+            });
+        } else {
+            auth.signOut().then(() => window.location.href = "auth.html");
+        }
+    }
+</script>
 
             // 3. Lắng nghe số xu thời gian thực
             db.ref('users/' + user.uid + '/coins').on('value', (snapshot) => {
