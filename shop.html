@@ -179,22 +179,26 @@
 }
     function select(i) { currentIdx = i; render(); }
 
-    function updateDetail() {
-        const p = paddles[currentIdx], btn = document.getElementById('btn-main');
-        if (!p) return;
-        const isOwned = ownedPaddles.includes(p.id);
-        document.getElementById('p-name').innerText = p.name;
-        document.getElementById('selected-stat').innerText = `${p.cap} KG`;
+   function updateDetail() {
+    const p = paddles[currentIdx], btn = document.getElementById('btn-main');
+    if (!p) return;
+    
+    const isOwned = ownedPaddles.includes(p.id);
+    document.getElementById('p-name').innerText = p.name;
+    
+    // Cập nhật 2 thông số: Chống chịu và Kích thước
+    document.getElementById('cap-value').innerText = `${p.cap} TẤN`;
+    document.getElementById('width-value').innerText = `${p.width}px`;
 
-        if (isOwned) {
-            const isEquipped = localStorage.getItem('selectedPaddle') === p.id;
-            btn.innerText = isEquipped ? "ĐANG DÙNG" : "TRANG BỊ";
-            btn.disabled = isEquipped;
-        } else {
-            btn.innerText = "NÂNG CẤP";
-            btn.disabled = myCoins < p.price;
-        }
+    if (isOwned) {
+        const isEquipped = localStorage.getItem('selectedPaddle') === p.id;
+        btn.innerText = isEquipped ? "ĐANG DÙNG" : "TRANG BỊ";
+        btn.disabled = isEquipped;
+    } else {
+        btn.innerText = "NÂNG CẤP";
+        btn.disabled = myCoins < p.price;
     }
+}
 
     function equipPaddle(p) {
         localStorage.setItem('selectedPaddle', p.id);
