@@ -9,6 +9,8 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
+        .status-dot.offline { color: #757575; } /* Màu xám cho offline */
+.status-dot.online { color: var(--success); } /* Màu xanh cho online */
         :root { --primary: #5d5dff; --bg: #1a1a2e; --card: #2a2a4a; --success: #4CAF50; --danger: #ff4d4d; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: white; margin: 0; padding: 20px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; overflow: hidden; }
         
@@ -90,6 +92,16 @@
     auth.onAuthStateChanged(user => {
         if (user) {
             myId = user.uid;
+            // Theo dõi trạng thái kết nối
+const myStatusRef = db.ref('/status/' + myId);
+db.ref('.info/connected').on('value', (snap) => {
+    if (snap.val() === false) return;
+    // Khi thoát game/đóng tab
+    myStatusRef.onDisconnect().set({ state: 'offline' }).then(() => {
+        // Khi đang mở game
+        myStatusRef.set({ state: 'online' });
+    });
+});
             db.ref('users/' + myId + '/name').once('value', s => myName = s.val());
             loadFriends();
             loadRequests();
@@ -155,18 +167,41 @@
     async function reject(fId) { await db.ref('friendRequests/' + myId + '/' + fId).remove(); }
 
     function loadFriends() {
-        db.ref('friends/' + myId).on('value', snap => {
-            const list = document.getElementById('friend-list-content');
-            list.innerHTML = snap.exists() ? "" : "<p style='text-align:center;color:#666'>Chưa có bạn bè</p>";
-            snap.forEach(child => {
-                list.innerHTML += `
-                    <div class="friend-item">
-                        <div class="info"><div class="avatar">${child.val().name[0]}</div><b>${child.val().name}</b></div>
-                        <div class="status-dot">● Online</div>
-                    </div>`;
+    db.ref('friends/' + myId).on('value', snap => {
+        const list = document.getElementById('friend-list-content');
+        list.innerHTML = snap.exists() ? "" : "<p style='text-align:center;color:#666'>Chưa có bạn bè</p>";
+        
+        snap.forEach(child => {
+            const friendId = child.key;
+            const friendName = child.val().name;
+            
+            // Tạo một ID html riêng cho mỗi chấm trạng thái
+            const statusId = `status-${friendId}`;
+            
+            list.innerHTML += `
+                <div class="friend-item">
+                    <div class="info">
+                        <div class="avatar">${friendName[0]}</div>
+                        <b>${friendName}</b>
+                    </div>
+                    <div id="${statusId}" class="status-dot offline">● Offline</div>
+                </div>`;
+            
+            // Lắng nghe trạng thái Online của người bạn này
+            db.ref('/status/' + friendId + '/state').on('value', s => {
+                const dot = document.getElementById(statusId);
+                if (!dot) return;
+                if (s.val() === 'online') {
+                    dot.innerText = "● Online";
+                    dot.className = "status-dot online";
+                } else {
+                    dot.innerText = "● Offline";
+                    dot.className = "status-dot offline";
+                }
             });
         });
-    }
+    });
+}
 
     function toggleRequests() {
         const box = document.getElementById('request-box');
