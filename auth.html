@@ -98,27 +98,24 @@ async function handleAuth() {
 
     try {
         if (isLogin) {
-            // LOGIN
             await auth.signInWithEmailAndPassword(email, pass);
             window.location.href = "index.html";
         } else {
-            // REGISTER
             if (nickname.length < 3) return err.innerText = "Tên ít nhất 3 ký tự!";
 
-            // 1. Kiểm tra tên trùng trong Database
+            // 1. Tạo tài khoản trước để có quyền truy cập (vượt qua Rules auth != null)
+            const res = await auth.createUserWithEmailAndPassword(email, pass);
+            
+            // 2. Sau khi đã 'auth', mới kiểm tra tên trùng
             const nameCheck = await db.ref('users').orderByChild('name').equalTo(nickname).once('value');
             if (nameCheck.exists()) {
+                // Nếu trùng, xóa tài khoản vừa tạo và báo lỗi
+                await res.user.delete();
                 return err.innerText = "Tên này đã có người dùng!";
             }
 
-            // 2. Tạo tài khoản Auth
-            const res = await auth.createUserWithEmailAndPassword(email, pass);
-            
-            // 3. Cập nhật Profile cho Auth
+            // 3. Cập nhật Profile và lưu vào Database
             await res.user.updateProfile({ displayName: nickname });
-
-            // 4. Khởi tạo dữ liệu người dùng mới vào Database
-            // Dùng res.user.uid trực tiếp để đảm bảo quyền ghi
             await db.ref('users/' + res.user.uid).set({
                 name: nickname,
                 email: email,
