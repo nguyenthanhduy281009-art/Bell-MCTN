@@ -82,12 +82,17 @@
 
     // DANH SÁCH TẤT CẢ VÁN (Thêm ván mới vào đây)
     const paddles = [
-        { id: 'default', name: 'Ván Gỗ', cap: 100, price: 0, color: '#8d6e63', width: 130 },
-        { id: 'iron', name: 'Ván Sắt', cap: 250, price: 500, color: '#b0bec5', width: 140 },
-        { id: 'pink', name: 'Ván Hồng', cap: 450, price: 1200, color: '#f06292', width: 145 },
-        { id: 'gold', name: 'Ván Vàng', cap: 1000, price: 5000, color: '#ffd54f', width: 155 },
-        { id: 'diamond', name: 'Ván Kim Cương', cap: 2500, price: 15000, color: '#4fc3f7', width: 170 }
-    ];
+    { id: 'default', name: 'Ván Gỗ Mục', cap: 3, price: 0, color: '#8d6e63', width: 135 },      // Nâu gỗ
+    { id: 'stone', name: 'Ván Đá Chẻ', cap: 5, price: 500, color: '#757575', width: 135 },      // Xám đá
+    { id: 'iron', name: 'Ván Sắt Rỉ', cap: 8, price: 800, color: '#b0bec5', width: 135 },       // Xám bạc
+    { id: 'bronze', name: 'Ván Đồng Đúc', cap: 10, price: 1000, color: '#cd7f32', width: 135 }, // Màu đồng
+    { id: 'leaf', name: 'Ván Lá Cây', cap: 12, price: 1200, color: '#4caf50', width: 130 },     // Xanh lá
+    { id: 'ocean', name: 'Ván Đại Dương', cap: 15, price: 1500, color: '#2196f3', width: 130 }, // Xanh biển
+    { id: 'pink', name: 'Ván Hồng Ngọc', cap: 20, price: 1800, color: '#f06292', width: 130 },  // Hồng đậm
+    { id: 'gold', name: 'Ván Vàng Ròng', cap: 25, price: 2000, color: '#ffd54f', width: 125 }, // Vàng (Ngắn hơn để khó hơn)
+    { id: 'diamond', name: 'Ván Kim Cương', cap: 28, price: 2500, color: '#4fc3f7', width: 125 }, // Xanh kim cương
+    { id: 'obsidian', name: 'Ván Hắc Diệu Thạch', cap: 30, price: 3000, color: '#212121', width: 120 } // Đen tuyền (Xịn nhất)
+];
 
     let currentIdx = 0, myCoins = 0, isInventoryMode = false;
     let ownedPaddles = JSON.parse(localStorage.getItem('ownedPaddles')) || ['default'];
