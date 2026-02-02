@@ -68,6 +68,48 @@
 </div>
 
 <script>
+    function renderFriendStatus(friendId, elementId) {
+    db.ref('/status/' + friendId).on('value', s => {
+        const status = s.val();
+        const el = document.getElementById(elementId);
+        if (!el) return; // Nếu không tìm thấy thẻ HTML thì bỏ qua
+
+        if (status && status.state === 'online') {
+            el.innerHTML = '<span style="color: #4CAF50; font-size: 12px;">● Online</span>';
+        } else {
+            el.innerHTML = '<span style="color: #777; font-size: 12px;">○ Offline</span>';
+        }
+    });
+}
+    // Hàm theo dõi trạng thái kết nối
+function setupPresence(userId) {
+    const userStatusDatabaseRef = firebase.database().ref('/status/' + userId);
+
+    // Firebase có một vị trí đặc biệt là .info/connected để biết client có đang kết nối không
+    firebase.database().ref('.info/connected').on('value', (snapshot) => {
+        if (snapshot.val() === false) return;
+
+        // Khi người chơi ngắt kết nối (tắt app, mất mạng), Firebase Server tự động set offline
+        userStatusDatabaseRef.onDisconnect().set({
+            state: 'offline',
+            last_changed: firebase.database.ServerValue.TIMESTAMP
+        }).then(() => {
+            // Nếu đang kết nối thì set là online
+            userStatusDatabaseRef.set({
+                state: 'online',
+                last_changed: firebase.database.ServerValue.TIMESTAMP
+            });
+        });
+    });
+}
+
+// Gọi hàm này ngay sau khi login thành công
+auth.onAuthStateChanged(user => {
+    if (user) {
+        setupPresence(user.uid);
+        // ... các logic khác của Duy
+    }
+});
     // CHẶN ZOOM TRIỆT ĐỂ
     document.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
     let lastTouchEnd = 0;
