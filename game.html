@@ -75,29 +75,23 @@
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database(), auth = firebase.auth();
 
-    const paddleConfigs = {
-        'default': { capacity: 100, color: 'rgba(255, 255, 255, 0.4)', width: 130 },
-        'iron':    { capacity: 250, color: 'linear-gradient(#757575, #212121)', width: 140 },
-        'gold':    { capacity: 600, color: 'linear-gradient(#FFD700, #FF8C00)', width: 150 },
-        'diamond': { capacity: 1500, color: 'linear-gradient(#00E5FF, #007BFF)', width: 160 }
-    };
-
-    const selectedType = localStorage.getItem('selectedPaddle') || 'default';
-    const currentConfig = paddleConfigs[selectedType] || paddleConfigs['default'];
+    // LẤY THÔNG SỐ VÁN TỪ SHOP (Lưu qua localStorage)
+    const currentMax = parseInt(localStorage.getItem('paddleCapacity')) || 100;
+    const currentColor = localStorage.getItem('paddleColor') || 'rgba(255, 255, 255, 0.4)';
+    const currentWidth = parseInt(localStorage.getItem('paddleWidth')) || 130;
 
     const paddle = document.getElementById('paddle'), numDisp = document.getElementById('num'), barDisp = document.getElementById('bar');
     const timerDisp = document.getElementById('timer'), container = document.getElementById('game-container'), msg = document.getElementById('msg');
     
     let score = 0, seconds = 0, gameOver = false, baseSpeed = 5;
-    let currentMax = currentConfig.capacity;
 
-    paddle.style.background = currentConfig.color;
-    paddle.style.width = currentConfig.width + 'px';
+    // ÁP DỤNG THÔNG SỐ VÁN
+    paddle.style.background = currentColor;
+    paddle.style.width = currentWidth + 'px';
     document.getElementById('max-num').innerText = currentMax;
 
     const coinImgURL = 'https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100';
 
-    // CẤU HÌNH VẬT PHẨM
     const itemTypes = [
         { url: 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w200', chance: 60, weight: 1, type: 'normal' },
         { url: 'https://drive.google.com/thumbnail?id=17JZiAW3NHJvEg2iN679TdNB_DVlKN7xz&sz=w200', chance: 25, weight: 2, type: 'normal' },
@@ -143,34 +137,27 @@
 
     function createItem() {
         if (gameOver) return;
-        
         let rand = Math.random() * 100, cumulative = 0, selected = itemTypes[0];
         for (let t of itemTypes) {
             cumulative += t.chance;
             if (rand < cumulative) { selected = t; break; }
         }
-
         const item = document.createElement('img');
         item.src = selected.url;
         item.className = 'falling-item';
         item.style.left = Math.random() * (container.offsetWidth - 60) + 'px';
         item.style.top = '-100px';
         container.appendChild(item);
-
         let top = -100;
         const speed = baseSpeed + (Math.random() * 2);
-
         const fallInterval = setInterval(() => {
             if (gameOver) { clearInterval(fallInterval); item.remove(); return; }
             top += speed;
             item.style.top = top + 'px';
-            
             const p = paddle.getBoundingClientRect(), i = item.getBoundingClientRect();
-            
             if (i.bottom >= p.top && i.right >= p.left && i.left <= p.right && i.top <= p.bottom) {
                 clearInterval(fallInterval);
                 item.remove();
-
                 if (selected.type === 'danger') {
                     endGame("CHẠM VẬT CẤM!");
                 } else if (selected.type === 'percent') {
@@ -178,11 +165,9 @@
                 } else {
                     score += selected.weight;
                 }
-
                 numDisp.innerText = score;
                 let percent = (score / currentMax) * 100;
                 barDisp.style.width = Math.min(percent, 100) + '%';
-
                 if (score >= currentMax) endGame("QUÁ TẢI RỒI!");
             }
             if (top > window.innerHeight) { clearInterval(fallInterval); item.remove(); }
