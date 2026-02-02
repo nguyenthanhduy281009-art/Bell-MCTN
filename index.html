@@ -10,75 +10,24 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <style>
-        :root {
-            --primary-gradient: linear-gradient(135deg, #8BC34A, #2196F3);
-            --bg-color: #f8f9fa;
-        }
-
-        .coin-icon-small {
-            width: 24px; height: 24px;
-            vertical-align: middle; margin-left: 6px;
-            object-fit: contain; mix-blend-mode: multiply;
-            filter: contrast(1.2) drop-shadow(0 2px 4px rgba(0,0,0,0.1));
-            border-radius: 50%;
-        }
-
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            margin: 0; background: var(--bg-color);
-            height: 100vh; display: flex; flex-direction: column; color: #333;
-            overflow: hidden;
-        }
-
+        :root { --primary-gradient: linear-gradient(135deg, #8BC34A, #2196F3); --bg-color: #f8f9fa; }
+        .coin-icon-small { width: 24px; height: 24px; vertical-align: middle; margin-left: 6px; object-fit: contain; mix-blend-mode: multiply; filter: contrast(1.2) drop-shadow(0 2px 4px rgba(0,0,0,0.1)); border-radius: 50%; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg-color); height: 100vh; display: flex; flex-direction: column; color: #333; overflow: hidden; }
         .header { display: flex; justify-content: space-between; padding: 25px 40px; align-items: center; }
-        .logo { 
-            font-size: 36px; font-weight: 900; margin: 0;
-            background: linear-gradient(to right, #8BC34A, #4CAF50);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            letter-spacing: 2px;
-        }
-
-        .logout-btn {
-            background: #fff; border: 1px solid #ddd; padding: 8px 15px;
-            border-radius: 20px; cursor: pointer; font-weight: 500; transition: 0.3s;
-        }
+        .logo { font-size: 36px; font-weight: 900; margin: 0; background: linear-gradient(to right, #8BC34A, #4CAF50); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 2px; }
+        .logout-btn { background: #fff; border: 1px solid #ddd; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: 500; transition: 0.3s; }
         .logout-btn:hover { background: #ffeded; color: #f44336; border-color: #f44336; }
-
         .user-info { padding: 0 40px; }
         .user-info p { margin: 5px 0; font-size: 18px; color: #555; display: flex; align-items: center; }
         .user-info b { color: #2196F3; }
-
         .main-action { flex: 1; display: flex; justify-content: center; align-items: center; }
-        .play-btn {
-            width: 280px; height: 75px;
-            border: none; border-radius: 20px;
-            cursor: pointer; position: relative; transition: 0.2s;
-            background: #4CAF50;
-            box-shadow: 0 8px 0 #2e7d32, 0 15px 20px rgba(0,0,0,0.2);
-            display: flex; justify-content: center; align-items: center;
-            color: white; font-size: 26px; font-weight: 900;
-            text-transform: uppercase; letter-spacing: 2px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
+        .play-btn { width: 280px; height: 75px; border: none; border-radius: 20px; cursor: pointer; position: relative; transition: 0.2s; background: #4CAF50; box-shadow: 0 8px 0 #2e7d32, 0 15px 20px rgba(0,0,0,0.2); display: flex; justify-content: center; align-items: center; color: white; font-size: 26px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
         .play-btn:hover { background: #66bb6a; transform: translateY(-2px); }
         .play-btn:active { transform: translateY(6px); box-shadow: 0 2px 0 #1b5e20; }
-
-        .footer-menu {
-            display: flex; justify-content: space-around; padding: 25px;
-            background: white; border-radius: 30px 30px 0 0;
-            box-shadow: 0 -5px 15px rgba(0,0,0,0.05);
-        }
-        .menu-item {
-            background: none; border: none; font-size: 18px; font-weight: 700;
-            color: #444; cursor: pointer; padding: 10px; transition: 0.3s;
-        }
+        .footer-menu { display: flex; justify-content: space-around; padding: 25px; background: white; border-radius: 30px 30px 0 0; box-shadow: 0 -5px 15px rgba(0,0,0,0.05); }
+        .menu-item { background: none; border: none; font-size: 18px; font-weight: 700; color: #444; cursor: pointer; padding: 10px; transition: 0.3s; }
         .menu-item:hover { color: #8BC34A; transform: scale(1.1); }
-
-        #loading {
-            position: fixed; inset: 0; background: white;
-            display: flex; justify-content: center; align-items: center;
-            z-index: 100; font-weight: bold;
-        }
+        #loading { position: fixed; inset: 0; background: white; display: flex; justify-content: center; align-items: center; z-index: 100; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -128,80 +77,48 @@
             document.getElementById('loading').style.display = 'none';
             document.getElementById('main-content').style.display = 'flex';
             
-            // --- FIX LỖI: CHỈ CHẠY KHI ĐÃ XÁC THỰC USER ---
+            // CẬP NHẬT ONLINE/OFFLINE
             const userStatusRef = db.ref('/status/' + user.uid);
-            db.ref('.info/connected').on('value', (snapshot) => {
-                if (snapshot.val() === false) return;
-                userStatusRef.onDisconnect().set({
-                    state: 'offline',
-                    last_changed: firebase.database.ServerValue.TIMESTAMP
-                }).then(() => {
-                    userStatusRef.set({
-                        state: 'online',
-                        last_changed: firebase.database.ServerValue.TIMESTAMP
-                    });
+            db.ref('.info/connected').on('value', (snap) => {
+                if (snap.val() === false) return;
+                userStatusRef.onDisconnect().set({ state: 'offline' }).then(() => {
+                    userStatusRef.set({ state: 'online' });
                 });
             });
-            // ----------------------------------------------
 
+            // HIỂN THỊ THÔNG TIN
             const displayName = user.displayName || user.email.split('@')[0];
             document.getElementById('user-name').innerText = displayName;
 
+            // ĐỒNG BỘ USER TRÊN DATABASE
             const userRef = db.ref('users/' + user.uid);
-            userRef.once('value').then(snapshot => {
-                const data = snapshot.val();
-                if (!snapshot.exists() || !data.name || !data.email) {
-                    userRef.update({
-                        name: displayName,
-                        email: user.email,
-                        coins: data?.coins || 0,
-                        highScore: data?.highScore || 0
-                    });
+            userRef.once('value').then(s => {
+                if (!s.exists()) {
+                    userRef.set({ name: displayName, email: user.email, coins: 0, highScore: 0 });
                 }
             });
 
-            db.ref('users/' + user.uid + '/coins').on('value', (snapshot) => {
-                const coins = snapshot.val() || 0;
-                document.getElementById('user-coins').innerHTML = `${coins} <img src="${coinImgURL}" class="coin-icon-small">`;
+            // LẮNG NGHE XU
+            db.ref('users/' + user.uid + '/coins').on('value', s => {
+                document.getElementById('user-coins').innerHTML = `${s.val() || 0} <img src="${coinImgURL}" class="coin-icon-small">`;
             });
 
-        } else {
-            window.location.href = "auth.html";
-        }
+        } else { window.location.href = "auth.html"; }
     });
 
-    async function smartRedirect(url, message) {
+    async function smartRedirect(url, msg) {
         try {
-            const response = await fetch(url, { method: 'HEAD' });
-            if (response.ok) { window.location.href = url; } 
-            else { alert(message); }
-        } catch (e) { alert(message); }
+            const res = await fetch(url, { method: 'HEAD' });
+            if (res.ok) location.href = url; else alert(msg);
+        } catch (e) { alert(msg); }
     }
 
     function logout() {
         if(auth.currentUser) {
             db.ref('/status/' + auth.currentUser.uid).set({ state: 'offline' }).then(() => {
-                auth.signOut().then(() => window.location.href = "auth.html");
+                auth.signOut().then(() => location.href = "auth.html");
             });
-        } else {
-            auth.signOut().then(() => window.location.href = "auth.html");
-        }
-    }
-</script>
-
-            // 3. Lắng nghe số xu thời gian thực
-            db.ref('users/' + user.uid + '/coins').on('value', (snapshot) => {
-                const coins = snapshot.val() || 0;
-                document.getElementById('user-coins').innerHTML = `${coins} <img src="${coinImgURL}" class="coin-icon-small">`;
-            });
-
-        } else {
-            window.location.href = "auth.html";
-        }
-    });
-
-    function logout() {
-        auth.signOut().then(() => window.location.href = "auth.html");
+        } else { auth.signOut().then(() => location.href = "auth.html"); }
     }
 </script>
 </body>
