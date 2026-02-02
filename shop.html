@@ -100,14 +100,40 @@
     });
 
     const slider = document.getElementById('carousel');
-    function toggleInventory() {
-        isInventoryMode = !isInventoryMode;
-        document.getElementById('btn-inventory').innerText = isInventoryMode ? "TẤT CẢ" : "KHO ĐỒ";
-        document.querySelector('h2').innerText = isInventoryMode ? "KHO ĐỒ" : "CỬA HÀNG";
-        currentIdx = 0;
-        render();
-    }
+    let isDown = false, startX, scrollLeft;
 
+    // XỬ LÝ CHUỘT (PC)
+    slider.addEventListener('mousedown', e => { 
+        isDown = true; 
+        slider.style.cursor = 'grabbing';
+        startX = e.pageX - slider.offsetLeft; 
+        scrollLeft = slider.scrollLeft; 
+    });
+    slider.addEventListener('mouseleave', () => { isDown = false; slider.style.cursor = 'grab'; });
+    slider.addEventListener('mouseup', () => { isDown = false; slider.style.cursor = 'grab'; });
+    slider.addEventListener('mousemove', e => {
+        if(!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - slider.offsetLeft;
+        const walk = (x - startX) * 2; // Tốc độ lướt
+        slider.scrollLeft = scrollLeft - walk;
+    });
+
+    // XỬ LÝ VUỐT TAY (MOBILE)
+    slider.addEventListener('touchstart', e => {
+        isDown = true;
+        startX = e.touches[0].pageX - slider.offsetLeft;
+        scrollLeft = slider.scrollLeft;
+    }, {passive: true});
+
+    slider.addEventListener('touchend', () => isDown = false);
+
+    slider.addEventListener('touchmove', e => {
+        if(!isDown) return;
+        const x = e.touches[0].pageX - slider.offsetLeft;
+        const walk = (x - startX) * 2;
+        slider.scrollLeft = scrollLeft - walk;
+    }, {passive: true});
     function render() {
         document.getElementById('coin-display').innerHTML = `${myCoins} <img src="${coinImg}" class="coin-img">`;
         const list = isInventoryMode ? paddles.filter(p => p.lv <= myMaxLv) : paddles;
