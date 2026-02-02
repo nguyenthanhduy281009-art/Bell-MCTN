@@ -8,34 +8,31 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        /* KHÓA CỨNG KHUNG HÌNH CHẶN ZOOM */
-        html, body {
-            position: fixed;
-            overflow: hidden;
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            touch-action: none; /* Quan trọng nhất để chặn zoom trên di động */
-            background: #000;
-            color: white;
-            font-family: sans-serif;
-            user-select: none;
-            -webkit-user-select: none;
-            display: flex;
-            justify-content: center;
-        }
+       html, body {
+    position: fixed;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    touch-action: none;
+    background: #000;
+    /* Đảm bảo chỉ có 1 cột duy nhất ở giữa */
+    display: block; 
+}
 
-        #game-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            max-width: 500px;
-            background: radial-gradient(circle, #1a1a2e, #000);
-            overflow: hidden;
-            border-left: 1px solid #333;
-            border-right: 1px solid #333;
-        }
+#game-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    max-width: 500px; /* Giới hạn độ rộng để không bị tràn trên máy tính */
+    margin: 0 auto;   /* Căn giữa màn hình */
+    background: radial-gradient(circle, #1a1a2e, #000);
+    overflow: hidden;
+    border-left: 1px solid #333;
+    border-right: 1px solid #333;
+    box-sizing: border-box;
+}
 
         /* VÁN TRƯỢT */
         :root { --glow: transparent; }
