@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title> SKY DODGE - GAME </title>
@@ -9,32 +8,27 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
+        :root { --glow: transparent; }
         .coin-icon { width: 20px; height: 20px; vertical-align: middle; margin-left: 5px; border-radius: 50%; }
-        body { margin: 0; overflow: hidden; background: #000; color: white; font-family: sans-serif; touch-action: none; display: flex; justify-content: center; }
-        body {
-    touch-action: none; /* Vô hiệu hóa các thao tác mặc định của trình duyệt */
-    user-select: none;  /* Không cho bôi đen văn bản */
-    -webkit-user-select: none;
-}
-       #game-container { 
-    position: relative; 
-    width: 100vw; 
-    height: 100vh; 
-    max-width: 500px; 
-    /* ĐÂY LÀ DÒNG CHỈNH MÀU NỀN */
-    background: radial-gradient(circle, #2c3e50, #000); 
-    overflow: hidden; 
-    border-left: 1px solid #333; 
-    border-right: 1px solid #333;
-}
+        
+        body { 
+            margin: 0; overflow: hidden; background: #000; color: white; 
+            font-family: sans-serif; touch-action: none; display: flex; 
+            justify-content: center; user-select: none; -webkit-user-select: none;
+        }
+
+        #game-container { 
+            position: relative; width: 100vw; height: 100vh; max-width: 500px; 
+            background: radial-gradient(circle, #1a1a2e, #000); 
+            overflow: hidden; border-left: 1px solid #333; border-right: 1px solid #333;
+        }
 
         #paddle {
             position: absolute; bottom: 120px; left: 50%;
-            width: 130px; height: 18px;
-            background: rgba(255, 255, 255, 0.4);
-            border: 2px solid #fff; border-radius: 10px;
+            height: 18px; border-radius: 10px;
             transform: translateX(-50%); z-index: 100;
-            transition: background 0.3s, width 0.3s;
+            transition: background 0.3s, width 0.3s, box-shadow 0.3s;
+            box-shadow: 0 0 15px var(--glow); /* Hiệu ứng tỏa sáng cho ván xịn */
         }
 
         .ui { position: fixed; top: 20px; width: 100%; max-width: 500px; text-align: center; pointer-events: none; z-index: 200; }
@@ -74,31 +68,15 @@
 </div>
 
 <script>
-    // Chặn Zoom bằng phím tắt (Ctrl + / Ctrl -) và bánh răng chuột
-window.addEventListener('keydown', e => {
-    if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=')) {
-        e.preventDefault();
-    }
-});
+    // CHẶN ZOOM TRIỆT ĐỂ
+    document.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', e => {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) e.preventDefault();
+        lastTouchEnd = now;
+    }, false);
 
-window.addEventListener('wheel', e => {
-    if (e.ctrlKey) e.preventDefault();
-}, { passive: false });
-
-// Chặn Zoom bằng 2 ngón tay trên điện thoại (Pinch Zoom)
-document.addEventListener('touchstart', e => {
-    if (e.touches.length > 1) e.preventDefault();
-}, { passive: false });
-
-// Chặn Double Tab (gõ 2 lần để zoom)
-let lastTouchEnd = 0;
-document.addEventListener('touchend', e => {
-    const now = (new Date()).getTime();
-    if (now - lastTouchEnd <= 300) {
-        e.preventDefault();
-    }
-    lastTouchEnd = now;
-}, false);
     const firebaseConfig = {
         apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
         authDomain: "sky-dodge-8f537.firebaseapp.com",
@@ -111,20 +89,30 @@ document.addEventListener('touchend', e => {
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database(), auth = firebase.auth();
 
-    // LẤY THÔNG SỐ VÁN TỪ SHOP (Lưu qua localStorage)
+    // LẤY THÔNG SỐ VÁN
     const currentMax = parseInt(localStorage.getItem('paddleCapacity')) || 100;
     const currentColor = localStorage.getItem('paddleColor') || 'rgba(255, 255, 255, 0.4)';
-    const currentWidth = parseInt(localStorage.getItem('paddleWidth')) || 130;
+    const rawWidth = localStorage.getItem('paddleWidth') || '130';
+    const currentWidth = rawWidth.includes('vw') ? rawWidth : rawWidth + 'px';
 
     const paddle = document.getElementById('paddle'), numDisp = document.getElementById('num'), barDisp = document.getElementById('bar');
     const timerDisp = document.getElementById('timer'), container = document.getElementById('game-container'), msg = document.getElementById('msg');
     
     let score = 0, seconds = 0, gameOver = false, baseSpeed = 5;
 
-    // ÁP DỤNG THÔNG SỐ VÁN
+    // ÁP DỤNG THÔNG SỐ VÀ HIỆU ỨNG VÁN XỊN
     paddle.style.background = currentColor;
-    paddle.style.width = currentWidth + 'px';
+    paddle.style.width = currentWidth;
     document.getElementById('max-num').innerText = currentMax;
+
+    // Chỉ ván xịn (từ Hắc Diện Thạch trở lên hoặc cap >= 30) mới có viền và phát sáng
+    if (currentMax >= 30) {
+        paddle.style.border = "2px solid #fff";
+        document.documentElement.style.setProperty('--glow', currentColor.includes('gradient') ? '#9d00ff' : currentColor);
+    } else {
+        paddle.style.border = "2px solid rgba(255,255,255,0.3)";
+        document.documentElement.style.setProperty('--glow', 'transparent');
+    }
 
     const coinImgURL = 'https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100';
 
