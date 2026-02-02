@@ -185,7 +185,7 @@
             btn.innerText = isEquipped ? "ĐANG DÙNG" : "TRANG BỊ";
             btn.disabled = isEquipped;
         } else {
-            btn.innerText = "MUA VÁN";
+            btn.innerText = "NÂNG CẤP";
             btn.disabled = myCoins < p.price;
         }
     }
@@ -198,15 +198,25 @@
     }
 
     function handleAction() {
-        const p = paddles[currentIdx], user = auth.currentUser;
-        if (!p || !user) return;
-        const isOwned = ownedPaddles.includes(p.id);
+    const p = paddles[currentIdx], user = auth.currentUser;
+    if (!p || !user) return;
+    const isOwned = ownedPaddles.includes(p.id);
 
-        if (isOwned) {
-            equipPaddle(p);
-            render();
-            alert("Đã trang bị: " + p.name);
-        } else if (myCoins >= p.price) {
+    if (isOwned) {
+        equipPaddle(p);
+        render();
+        alert("Đã trang bị: " + p.name);
+    } else {
+        // KIỂM TRA MUA THEO THỨ TỰ
+        const prevPaddle = paddles[currentIdx - 1];
+        const canBuy = currentIdx === 0 || ownedPaddles.includes(prevPaddle.id);
+
+        if (!canBuy) {
+            alert("Bạn phải sở hữu " + prevPaddle.name + " trước đã!");
+            return;
+        }
+
+        if (myCoins >= p.price) {
             if (confirm("Mua " + p.name + " với " + p.price + " xu?")) {
                 db.ref('users/' + user.uid + '/coins').set(myCoins - p.price).then(() => {
                     ownedPaddles.push(p.id);
@@ -216,8 +226,11 @@
                     render();
                 });
             }
+        } else {
+            alert("Bạn không đủ xu!");
         }
     }
+}
 </script>
 </body>
 </html>
