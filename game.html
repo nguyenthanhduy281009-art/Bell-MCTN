@@ -28,7 +28,7 @@
             height: 18px; border-radius: 10px;
             transform: translateX(-50%); z-index: 100;
             transition: background 0.3s, width 0.3s, box-shadow 0.3s;
-            box-shadow: 0 0 15px var(--glow); /* Hiệu ứng tỏa sáng cho ván xịn */
+            box-shadow: 0 0 15px var(--glow);
         }
 
         .ui { position: fixed; top: 20px; width: 100%; max-width: 500px; text-align: center; pointer-events: none; z-index: 200; }
@@ -68,57 +68,7 @@
 </div>
 
 <script>
-    function renderFriendStatus(friendId, elementId) {
-    db.ref('/status/' + friendId).on('value', s => {
-        const status = s.val();
-        const el = document.getElementById(elementId);
-        if (!el) return; // Nếu không tìm thấy thẻ HTML thì bỏ qua
-
-        if (status && status.state === 'online') {
-            el.innerHTML = '<span style="color: #4CAF50; font-size: 12px;">● Online</span>';
-        } else {
-            el.innerHTML = '<span style="color: #777; font-size: 12px;">○ Offline</span>';
-        }
-    });
-}
-    // Hàm theo dõi trạng thái kết nối
-function setupPresence(userId) {
-    const userStatusDatabaseRef = firebase.database().ref('/status/' + userId);
-
-    // Firebase có một vị trí đặc biệt là .info/connected để biết client có đang kết nối không
-    firebase.database().ref('.info/connected').on('value', (snapshot) => {
-        if (snapshot.val() === false) return;
-
-        // Khi người chơi ngắt kết nối (tắt app, mất mạng), Firebase Server tự động set offline
-        userStatusDatabaseRef.onDisconnect().set({
-            state: 'offline',
-            last_changed: firebase.database.ServerValue.TIMESTAMP
-        }).then(() => {
-            // Nếu đang kết nối thì set là online
-            userStatusDatabaseRef.set({
-                state: 'online',
-                last_changed: firebase.database.ServerValue.TIMESTAMP
-            });
-        });
-    });
-}
-
-// Gọi hàm này ngay sau khi login thành công
-auth.onAuthStateChanged(user => {
-    if (user) {
-        setupPresence(user.uid);
-        // ... các logic khác của Duy
-    }
-});
-    // CHẶN ZOOM TRIỆT ĐỂ
-    document.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
-    let lastTouchEnd = 0;
-    document.addEventListener('touchend', e => {
-        const now = Date.now();
-        if (now - lastTouchEnd <= 300) e.preventDefault();
-        lastTouchEnd = now;
-    }, false);
-
+    // 1. CẤU HÌNH FIREBASE (LUÔN ĐỂ ĐẦU TIÊN)
     const firebaseConfig = {
         apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
         authDomain: "sky-dodge-8f537.firebaseapp.com",
@@ -131,7 +81,26 @@ auth.onAuthStateChanged(user => {
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database(), auth = firebase.auth();
 
-    // LẤY THÔNG SỐ VÁN
+    // 2. CHẶN ZOOM
+    document.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', e => {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) e.preventDefault();
+        lastTouchEnd = now;
+    }, false);
+
+    // 3. HỆ THỐNG ONLINE/OFFLINE
+    function setupPresence(userId) {
+        const userStatusRef = db.ref('/status/' + userId);
+        db.ref('.info/connected').on('value', (snap) => {
+            if (snap.val() === false) return;
+            userStatusRef.onDisconnect().set({ state: 'offline', last_changed: firebase.database.ServerValue.TIMESTAMP })
+            .then(() => userStatusRef.set({ state: 'online', last_changed: firebase.database.ServerValue.TIMESTAMP }));
+        });
+    }
+
+    // 4. KHAI BÁO BIẾN GAME
     const currentMax = parseInt(localStorage.getItem('paddleCapacity')) || 100;
     const currentColor = localStorage.getItem('paddleColor') || 'rgba(255, 255, 255, 0.4)';
     const rawWidth = localStorage.getItem('paddleWidth') || '130';
@@ -142,12 +111,11 @@ auth.onAuthStateChanged(user => {
     
     let score = 0, seconds = 0, gameOver = false, baseSpeed = 5;
 
-    // ÁP DỤNG THÔNG SỐ VÀ HIỆU ỨNG VÁN XỊN
+    // 5. KHỞI TẠO VÁN
     paddle.style.background = currentColor;
     paddle.style.width = currentWidth;
     document.getElementById('max-num').innerText = currentMax;
 
-    // Chỉ ván xịn (từ Hắc Diện Thạch trở lên hoặc cap >= 30) mới có viền và phát sáng
     if (currentMax >= 30) {
         paddle.style.border = "2px solid #fff";
         document.documentElement.style.setProperty('--glow', currentColor.includes('gradient') ? '#9d00ff' : currentColor);
@@ -165,6 +133,15 @@ auth.onAuthStateChanged(user => {
         { url: 'https://drive.google.com/thumbnail?id=19ryEq9TvAxEdriBohrz5zrEHY11xkapE&sz=w200', chance: 4, weight: 0.3, type: 'percent' },
         { url: 'https://drive.google.com/thumbnail?id=1IKc60y8Dn1ouIsFFzYw22oIcHM0Oxnjk&sz=w200', chance: 1, weight: 0, type: 'danger' }
     ];
+
+    // 6. LOGIC XỬ LÝ
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            setupPresence(user.uid);
+            spawnLoop();
+            setInterval(() => { if (!gameOver) { seconds++; timerDisp.innerText = seconds; if (seconds % 7 === 0) baseSpeed += 0.8; } }, 1000);
+        } else { location.href = 'index.html'; }
+    });
 
     async function saveGameData() {
         const user = auth.currentUser;
@@ -189,31 +166,23 @@ auth.onAuthStateChanged(user => {
             paddle.style.left = safeX + 'px';
         }
     }
+
     window.addEventListener('mousemove', (e) => movePaddle(e.clientX));
     window.addEventListener('touchstart', (e) => movePaddle(e.touches[0].clientX), {passive: false});
     window.addEventListener('touchmove', (e) => { e.preventDefault(); movePaddle(e.touches[0].clientX); }, { passive: false });
 
-    setInterval(() => {
-        if (!gameOver) {
-            seconds++;
-            timerDisp.innerText = seconds;
-            if (seconds % 7 === 0) baseSpeed += 0.8; 
-        }
-    }, 1000);
-
     function createItem() {
         if (gameOver) return;
         let rand = Math.random() * 100, cumulative = 0, selected = itemTypes[0];
-        for (let t of itemTypes) {
-            cumulative += t.chance;
-            if (rand < cumulative) { selected = t; break; }
-        }
+        for (let t of itemTypes) { cumulative += t.chance; if (rand < cumulative) { selected = t; break; } }
+        
         const item = document.createElement('img');
         item.src = selected.url;
         item.className = 'falling-item';
         item.style.left = Math.random() * (container.offsetWidth - 60) + 'px';
         item.style.top = '-100px';
         container.appendChild(item);
+
         let top = -100;
         const speed = baseSpeed + (Math.random() * 2);
         const fallInterval = setInterval(() => {
@@ -224,17 +193,13 @@ auth.onAuthStateChanged(user => {
             if (i.bottom >= p.top && i.right >= p.left && i.left <= p.right && i.top <= p.bottom) {
                 clearInterval(fallInterval);
                 item.remove();
-                if (selected.type === 'danger') {
-                    endGame("CHẠM VẬT CẤM!");
-                } else if (selected.type === 'percent') {
-                    score += Math.round(score * selected.weight);
-                } else {
-                    score += selected.weight;
+                if (selected.type === 'danger') endGame("CHẠM VẬT CẤM!");
+                else {
+                    score += (selected.type === 'percent') ? Math.round(score * selected.weight) : selected.weight;
+                    numDisp.innerText = score;
+                    barDisp.style.width = Math.min((score / currentMax) * 100, 100) + '%';
+                    if (score >= currentMax) endGame("QUÁ TẢI RỒI!");
                 }
-                numDisp.innerText = score;
-                let percent = (score / currentMax) * 100;
-                barDisp.style.width = Math.min(percent, 100) + '%';
-                if (score >= currentMax) endGame("QUÁ TẢI RỒI!");
             }
             if (top > window.innerHeight) { clearInterval(fallInterval); item.remove(); }
         }, 20);
@@ -253,11 +218,9 @@ auth.onAuthStateChanged(user => {
     function spawnLoop() {
         if (!gameOver) {
             createItem();
-            let nextSpawn = Math.max(250, 850 - (seconds * 12));
-            setTimeout(spawnLoop, nextSpawn);
+            setTimeout(spawnLoop, Math.max(250, 850 - (seconds * 12)));
         }
     }
-    spawnLoop();
 </script>
 </body>
 </html>
