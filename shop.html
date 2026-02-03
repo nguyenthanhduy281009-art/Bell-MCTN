@@ -138,42 +138,16 @@
 
     // --- CÁC LOGIC KHÁC GIỮ NGUYÊN ---
     const slider = document.getElementById('carousel');
-    let isDown = false, startX, scrollLeft, isMoved = false;
-
-    const startAction = (e) => { 
-        isDown = true; 
-        isMoved = false; 
-        slider.style.scrollBehavior = 'auto';
-        startX = (e.pageX || e.touches[0].pageX) - slider.offsetLeft; 
-        scrollLeft = slider.scrollLeft; 
-    };
-
-    const stopAction = () => { 
-        isDown = false; 
-        slider.style.scrollBehavior = 'smooth'; 
-    };
-
-    const moveAction = (e) => { 
-        if (!isDown) return; 
-        e.preventDefault(); 
-        const x = (e.pageX || e.touches[0].pageX) - slider.offsetLeft; 
-        const walk = (x - startX) * 2; 
-        if (Math.abs(walk) > 5) isMoved = true; 
-        slider.scrollLeft = scrollLeft - walk; 
-    };
-
+    let isDown = false, startX, scrollLeft;
+    const startAction = (e) => { isDown = true; startX = (e.pageX || e.touches[0].pageX) - slider.offsetLeft; scrollLeft = slider.scrollLeft; };
+    const stopAction = () => isDown = false;
+    const moveAction = (e) => { if (!isDown) return; e.preventDefault(); const x = (e.pageX || e.touches[0].pageX) - slider.offsetLeft; const walk = (x - startX) * 2; slider.scrollLeft = scrollLeft - walk; };
     slider.addEventListener('mousedown', startAction);
     slider.addEventListener('touchstart', startAction, {passive: false});
     window.addEventListener('mouseup', stopAction);
     window.addEventListener('touchend', stopAction);
     slider.addEventListener('mousemove', moveAction);
     slider.addEventListener('touchmove', moveAction, {passive: false});
-
-    function select(i) { 
-        if (isMoved) return; 
-        currentIdx = i; 
-        render(); 
-    }
 
     function toggleInventory() {
         isInventoryMode = !isInventoryMode;
@@ -203,6 +177,7 @@
         updateDetail();
     }
 
+    function select(i) { currentIdx = i; render(); }
 
     function updateDetail() {
         const p = paddles[currentIdx], btn = document.getElementById('btn-main');
