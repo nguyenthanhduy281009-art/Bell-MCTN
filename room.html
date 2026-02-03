@@ -72,102 +72,108 @@
     </div>
 
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
-            authDomain: "sky-dodge-8f537.firebaseapp.com",
-            databaseURL: "https://sky-dodge-8f537-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "sky-dodge-8f537",
-            storageBucket: "sky-dodge-8f537.firebasestorage.app",
-            messagingSenderId: "169224412363",
-            appId: "1:169224412363:web:de0d018158d8b34e854f4e"
-        };
-        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-        const db = firebase.database(), auth = firebase.auth();
+    const firebaseConfig = {
+        apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
+        authDomain: "sky-dodge-8f537.firebaseapp.com",
+        databaseURL: "https://sky-dodge-8f537-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "sky-dodge-8f537",
+        storageBucket: "sky-dodge-8f537.firebasestorage.app",
+        messagingSenderId: "169224412363",
+        appId: "1:169224412363:web:de0d018158d8b34e854f4e"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database(), auth = firebase.auth();
 
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                // Cập nhật trạng thái của mình ngay khi vào
-                db.ref('users/' + user.uid + '/status').set('online');
-                db.ref('users/' + user.uid + '/status').onDisconnect().set('offline');
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            // 1. Cập nhật trạng thái bản thân
+            const statusRef = db.ref('users/' + user.uid + '/status');
+            statusRef.set('online');
+            statusRef.onDisconnect().set('offline');
 
-                setPlayer(0, user.photoURL);
-                db.ref('rooms/' + user.uid + '/players/' + user.uid).set({ 
-                    name: user.displayName, 
-                    avatarUrl: user.photoURL || '' 
+            // 2. Load ảnh bản thân vào Slot đầu tiên (s0)
+            setPlayer(0, user.photoURL);
+
+            // 3. Theo dõi danh sách bạn bè Online
+            db.ref('friends/' + user.uid).on('value', s => {
+                const list = document.getElementById('friend-list');
+                const friends = s.val() || {};
+                list.innerHTML = ''; 
+
+                Object.entries(friends).forEach(([fUid, fData]) => {
+                    db.ref('users/' + fUid + '/status').on('value', st => {
+                        updateFriendUI(fUid, fData, st.val() === 'online');
+                    });
                 });
+            });
 
-                // TẢI BẠN BÈ: Tách biệt logic vẽ khung và lắng nghe trạng thái
-                db.ref('friends/' + user.uid).on('value', s => {
-                    const list = document.getElementById('friend-list');
-                    const friends = s.val() || {};
-                    list.innerHTML = ''; 
-
-                    if (Object.keys(friends).length === 0) {
-                        list.innerHTML = '<div style="text-align:center;padding:20px;opacity:0.5;font-size:12px;">Chưa có bạn bè</div>';
-                        return;
+            // 4. Theo dõi người chơi trong phòng (Từ s1 đến s5)
+            db.ref('rooms/' + user.uid + '/players').on('value', snap => {
+                const players = snap.val() || {};
+                // Reset các slot từ 1 đến 5 (slot 0 là chủ phòng)
+                for(let i=1; i<=5; i++) setPlayer(i, null);
+                
+                let count = 1;
+                Object.entries(players).forEach(([pUid, pData]) => {
+                    if (pUid !== user.uid && count <= 5) {
+                        setPlayer(count, pData.avatarUrl);
+                        count++;
                     }
-
-                    Object.entries(friends).forEach(([fUid, fData]) => {
-                        db.ref('users/' + fUid + '/status').on('value', st => {
-                            updateFriendUI(fUid, fData, st.val() === 'online');
-                        });
-                    });
                 });
+            });
+        } else {
+            location.href = 'auth.html';
+        }
+    });
 
-                // Hiện người chơi vào phòng
-                db.ref('rooms/' + user.uid + '/players').on('value', snap => {
-                    const players = snap.val() || {};
-                    for(let i=1; i<=5; i++) setPlayer(i, null);
-                    let count = 1;
-                    Object.entries(players).forEach(([pUid, pData]) => {
-                        if (pUid !== user.uid && count <= 5) {
-                            setPlayer(count, pData.avatarUrl);
-                            count++;
-                        }
-                    });
-                });
-            } else { location.href = 'auth.html'; }
-        });
-
-        function updateFriendUI(uid, data, isOnline) {
-            const list = document.getElementById('friend-list');
-            let row = document.getElementById('f-' + uid);
-            const content = `
-                <div style="display:flex;align-items:center;gap:10px;">
-                    <div style="position:relative">
-                        <img src="${data.avatarUrl || ''}" class="friend-img" referrerpolicy="no-referrer" onerror="this.src='https://ui-avatars.com/api/?name=U'">
-                        <div style="width:8px;height:8px;border-radius:50%;background:${isOnline?'#2ecc71':'#666'};position:absolute;bottom:0;right:0;border:1px solid #0f0c29;"></div>
-                    </div>
-                    <span style="font-size:12px;font-weight:bold;">${data.name || 'Bạn'}</span>
+    // Hàm vẽ danh sách bạn bè
+    function updateFriendUI(uid, data, isOnline) {
+        const list = document.getElementById('friend-list');
+        let row = document.getElementById('f-' + uid);
+        const content = `
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div style="position:relative">
+                    <img src="${data.avatarUrl || ''}" class="friend-img" referrerpolicy="no-referrer" onerror="this.src='https://ui-avatars.com/api/?name=U'">
+                    <div style="width:8px;height:8px;border-radius:50%;background:${isOnline?'#2ecc71':'#666'};position:absolute;bottom:0;right:0;border:1px solid #0f0c29;"></div>
                 </div>
-                ${isOnline ? `<button class="btn-invite" onclick="invite('${uid}')">MỜI</button>` : '<span style="font-size:10px;opacity:0.3">OFF</span>'}`;
-            
-            if (row) { row.innerHTML = content; } 
-            else {
-                const div = document.createElement('div');
-                div.id = 'f-' + uid; div.className = 'friend-card';
-                div.innerHTML = content; list.appendChild(div);
-            }
+                <span style="font-size:12px;font-weight:bold;">${data.name || 'Bạn'}</span>
+            </div>
+            ${isOnline ? `<button class="btn-invite" onclick="invite('${uid}')">MỜI</button>` : '<span style="font-size:10px;opacity:0.3">OFF</span>'}`;
+        
+        if (row) { row.innerHTML = content; } 
+        else {
+            const div = document.createElement('div');
+            div.id = 'f-' + uid; div.className = 'friend-card';
+            div.innerHTML = content; list.appendChild(div);
         }
+    }
 
-        function setPlayer(index, url) {
-            const s = document.getElementById(`s${index}`); if (!s) return;
-            s.innerHTML = url ? `<img src="${url}" referrerpolicy="no-referrer" onerror="this.src='https://ui-avatars.com/api/?name=U'">` : `<i class="fas fa-plus"></i>`;
-            url ? s.classList.add('occupied') : s.classList.remove('occupied');
-        }
+    // Hàm hiển thị Avatar vào Slot
+    function setPlayer(index, url) {
+        const s = document.getElementById(`s${index}`);
+        if (!s) return;
+        s.innerHTML = url ? `<img src="${url}" referrerpolicy="no-referrer" onerror="this.src='https://ui-avatars.com/api/?name=U'">` : `<i class="fas fa-plus"></i>`;
+        url ? s.classList.add('occupied') : s.classList.remove('occupied');
+    }
 
-        function invite(uid) {
-            db.ref('invites/' + uid).set({ 
-                fromName: auth.currentUser.displayName, 
-                roomId: auth.currentUser.uid, 
-                timestamp: firebase.database.ServerValue.TIMESTAMP 
-            }).then(() => alert("Đã gửi lời mời!"));
-        }
+    // Hàm mời bạn bè
+    function invite(uid) {
+        db.ref('invites/' + uid).set({ 
+            fromName: auth.currentUser.displayName || "Bạn bè", 
+            roomId: auth.currentUser.uid, 
+            timestamp: firebase.database.ServerValue.TIMESTAMP 
+        }).then(() => alert("Đã gửi lời mời!"));
+    }
 
-        function quitRoom() {
-            const user = auth.currentUser;
-            if (user) db.ref('rooms/' + user.uid).remove().then(() => { location.href = 'friends.html'; });
+    // Thoát phòng
+    function quitRoom() {
+        const user = auth.currentUser;
+        if (user) {
+            db.ref('rooms/' + user.uid).remove().then(() => {
+                location.href = 'friends.html';
+            });
         }
-    </script>
+    }
+</script>
 </body>
 </html>
