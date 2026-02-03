@@ -56,12 +56,15 @@
     <div id="search-result"></div>
 
     <div class="main-actions">
-        <div class="action-button"><i class="fas fa-plus"></i> Tạo phòng</div>
-        <div class="action-button" onclick="location.href='room.html'"><i class="fas fa-plus"></i> Tạo phòng</div>
-            <i class="fas fa-user-clock"></i> Lời mời kết bạn
-            <span id="request-count" class="badge" style="display:none">0</span>
-        </div>
+    <div class="action-button" onclick="location.href='room.html'">
+        <i class="fas fa-plus"></i> Tạo phòng chơi cược
     </div>
+
+    <div class="action-button" onclick="toggleRequests()">
+        <i class="fas fa-user-clock"></i> Lời mời kết bạn
+        <span id="request-count" class="badge" style="display:none">0</span>
+    </div>
+</div>
 
     <div id="request-box" class="list-box" style="display:none; border: 1px solid var(--primary); height: 200px;">
         <div class="list-label">LỜI MỜI ĐANG CHỜ</div>
