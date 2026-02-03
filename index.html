@@ -8,6 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
     <style>
         :root { --primary-gradient: linear-gradient(135deg, #8BC34A, #2196F3); --bg-color: #f8f9fa; }
@@ -17,16 +18,25 @@
         .logo { font-size: 36px; font-weight: 900; margin: 0; background: linear-gradient(to right, #8BC34A, #4CAF50); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 2px; }
         .logout-btn { background: #fff; border: 1px solid #ddd; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: 500; transition: 0.3s; }
         .logout-btn:hover { background: #ffeded; color: #f44336; border-color: #f44336; }
+        
+        /* Bố cục Avatar */
         .user-info { padding: 0 40px; }
-        .user-info p { margin: 5px 0; font-size: 18px; color: #555; display: flex; align-items: center; }
-        .user-info b { color: #2196F3; }
+        .user-profile { display: flex; align-items: center; gap: 20px; padding: 10px 0; }
+        .avatar-container { position: relative; cursor: pointer; }
+        .main-avatar { width: 80px; height: 80px; border-radius: 15px; border: 3px solid #5d5dff; object-fit: cover; background: white; }
+        .edit-badge { position: absolute; bottom: -5px; right: -5px; background: #5d5dff; color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; border: 2px solid white; }
+
+        /* Modal chọn ảnh */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: #e0e0e0; width: 85%; max-width: 450px; border-radius: 20px; padding: 20px; position: relative; text-align: center; }
+        .avatar-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; max-height: 300px; overflow-y: auto; padding: 10px; }
+        .avatar-option { width: 100%; aspect-ratio: 1/1; border-radius: 10px; cursor: pointer; border: 3px solid transparent; background: white; object-fit: cover; transition: 0.2s; }
+        .avatar-option:hover { transform: scale(1.05); border-color: #5d5dff; }
+
         .main-action { flex: 1; display: flex; justify-content: center; align-items: center; }
-        .play-btn { width: 280px; height: 75px; border: none; border-radius: 20px; cursor: pointer; position: relative; transition: 0.2s; background: #4CAF50; box-shadow: 0 8px 0 #2e7d32, 0 15px 20px rgba(0,0,0,0.2); display: flex; justify-content: center; align-items: center; color: white; font-size: 26px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-        .play-btn:hover { background: #66bb6a; transform: translateY(-2px); }
-        .play-btn:active { transform: translateY(6px); box-shadow: 0 2px 0 #1b5e20; }
+        .play-btn { width: 280px; height: 75px; border: none; border-radius: 20px; cursor: pointer; transition: 0.2s; background: #4CAF50; box-shadow: 0 8px 0 #2e7d32, 0 15px 20px rgba(0,0,0,0.2); color: white; font-size: 26px; font-weight: 900; text-transform: uppercase; }
         .footer-menu { display: flex; justify-content: space-around; padding: 25px; background: white; border-radius: 30px 30px 0 0; box-shadow: 0 -5px 15px rgba(0,0,0,0.05); }
-        .menu-item { background: none; border: none; font-size: 18px; font-weight: 700; color: #444; cursor: pointer; padding: 10px; transition: 0.3s; }
-        .menu-item:hover { color: #8BC34A; transform: scale(1.1); }
+        .menu-item { background: none; border: none; font-size: 18px; font-weight: 700; color: #444; cursor: pointer; padding: 10px; }
         #loading { position: fixed; inset: 0; background: white; display: flex; justify-content: center; align-items: center; z-index: 100; font-weight: bold; }
     </style>
 </head>
@@ -41,42 +51,17 @@
     </div>
 
     <div class="user-info">
-    <div class="user-profile">
-        <div class="avatar-container">
-            <img id="user-avatar" class="main-avatar" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" onclick="toggleAvatarModal()">
-            <div class="edit-badge"><i class="fas fa-camera"></i></div>
-        </div>
-        <div>
-            <p class="welcome-text">Xin chào: <b id="user-name">[Tên người dùng]</b></p>
-            <p class="coin-text">Số xu: <b id="user-coins">0</b></p>
-        </div>
-    </div>
-</div>
-
-<div id="avatar-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="toggleAvatarModal()">X</span>
-        <h3>CHỌN ẢNH ĐẠI DIỆN</h3>
-        <div class="avatar-grid" id="avatar-options">
+        <div class="user-profile">
+            <div class="avatar-container" onclick="toggleAvatarModal()">
+                <img id="user-avatar" class="main-avatar" src="https://cdn-icons-png.flaticon.com/512/149/149071.png">
+                <div class="edit-badge"><i class="fas fa-camera"></i></div>
             </div>
+            <div>
+                <p style="margin:0;">Xin chào: <b id="user-name">...</b></p>
+                <p style="margin:5px 0 0 0;">Số xu: <b id="user-coins">0</b></p>
+            </div>
+        </div>
     </div>
-</div>
-
-<style>
-    /* CSS cho bố cục mới */
-    .user-profile { display: flex; align-items: center; gap: 20px; padding: 10px 40px; }
-    .avatar-container { position: relative; cursor: pointer; }
-    .main-avatar { width: 80px; height: 80px; border-radius: 15px; border: 3px solid #5d5dff; object-fit: cover; background: white; }
-    .edit-badge { position: absolute; bottom: -5px; right: -5px; background: #5d5dff; color: white; width: 25px; height: 25px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; border: 2px solid white; }
-    
-    /* Modal chọn ảnh (Mô phỏng ảnh 74c19b.png) */
-    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; }
-    .modal-content { background: #e0e0e0; width: 80%; max-width: 500px; border-radius: 20px; padding: 20px; position: relative; text-align: center; }
-    .close-btn { position: absolute; top: 10px; right: 20px; font-size: 30px; font-weight: bold; cursor: pointer; color: #333; }
-    .avatar-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 20px; max-height: 300px; overflow-y: auto; padding: 10px; }
-    .avatar-option { width: 100%; aspect-ratio: 1/1; border-radius: 10px; cursor: pointer; border: 3px solid transparent; transition: 0.2s; background: white; }
-    .avatar-option:hover { transform: scale(1.1); border-color: #5d5dff; }
-</style>
 
     <div class="main-action">
         <button class="play-btn" onclick="smartRedirect('game.html', 'Trò chơi đang bảo trì!')">BẮT ĐẦU CHƠI</button>
@@ -86,6 +71,14 @@
         <button class="menu-item" onclick="smartRedirect('friends.html', 'Tính năng Bạn bè đang cập nhật!')">Bạn bè</button>
         <button class="menu-item" onclick="smartRedirect('shop.html', 'Cửa hàng đang được xây dựng!')">Cửa hàng</button>
         <button class="menu-item" onclick="smartRedirect('leaderboard.html', 'Bảng xếp hạng sẽ có sớm!')">Xếp hạng</button>
+    </div>
+</div>
+
+<div id="avatar-modal" class="modal">
+    <div class="modal-content">
+        <span onclick="toggleAvatarModal()" style="position:absolute; right:20px; top:10px; font-size:24px; cursor:pointer;">&times;</span>
+        <h3 style="font-family:'Luckiest Guy'; color:#5d5dff;">CHỌN ẢNH ĐẠI DIỆN</h3>
+        <div class="avatar-grid" id="avatar-options"></div>
     </div>
 </div>
 
@@ -105,39 +98,61 @@
     const auth = firebase.auth();
     const coinImgURL = 'https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100';
 
+    // Link ảnh đã sửa lỗi cú pháp cho Duy
+    const avatarList = [
+        'https://lh3.googleusercontent.com/d/1Jdn9LwZgS2f0r5Eqkne0Zs08aACEauRs', // Robot xanh
+        'https://lh3.googleusercontent.com/d/1RwjlCn_ffC7iAo03h66rEF8QlJ398c0s', // Quái vật cam
+        'https://cdn-icons-png.flaticon.com/512/4333/4333609.png',
+        'https://cdn-icons-png.flaticon.com/512/4140/4140048.png',
+        'https://cdn-icons-png.flaticon.com/512/1154/1154444.png',
+        'https://cdn-icons-png.flaticon.com/512/147/147144.png'
+    ];
+
     auth.onAuthStateChanged(user => {
         if (user) {
             document.getElementById('loading').style.display = 'none';
             document.getElementById('main-content').style.display = 'flex';
             
-            // CẬP NHẬT ONLINE/OFFLINE
-            const userStatusRef = db.ref('/status/' + user.uid);
-            db.ref('.info/connected').on('value', (snap) => {
-                if (snap.val() === false) return;
-                userStatusRef.onDisconnect().set({ state: 'offline' }).then(() => {
-                    userStatusRef.set({ state: 'online' });
-                });
-            });
-
-            // HIỂN THỊ THÔNG TIN
+            // Tên và Xu
             const displayName = user.displayName || user.email.split('@')[0];
             document.getElementById('user-name').innerText = displayName;
 
-            // ĐỒNG BỘ USER TRÊN DATABASE
-            const userRef = db.ref('users/' + user.uid);
-            userRef.once('value').then(s => {
-                if (!s.exists()) {
-                    userRef.set({ name: displayName, email: user.email, coins: 0, highScore: 0 });
-                }
-            });
-
-            // LẮNG NGHE XU
             db.ref('users/' + user.uid + '/coins').on('value', s => {
                 document.getElementById('user-coins').innerHTML = `${s.val() || 0} <img src="${coinImgURL}" class="coin-icon-small">`;
             });
 
+            // LẮNG NGHE AVATAR
+            db.ref('users/' + user.uid + '/avatar').on('value', s => { 
+                document.getElementById('user-avatar').src = s.val() || avatarList[0]; 
+            });
+
+            // Đồng bộ dữ liệu ban đầu
+            db.ref('users/' + user.uid).update({ name: displayName, email: user.email });
+
         } else { window.location.href = "auth.html"; }
     });
+
+    function toggleAvatarModal() {
+        const modal = document.getElementById('avatar-modal');
+        const isOpen = modal.style.display === 'flex';
+        modal.style.display = isOpen ? 'none' : 'flex';
+        if(!isOpen) initAvatarOptions();
+    }
+
+    function initAvatarOptions() {
+        const grid = document.getElementById('avatar-options');
+        grid.innerHTML = "";
+        avatarList.forEach(url => {
+            const img = document.createElement('img');
+            img.src = url;
+            img.className = 'avatar-option';
+            img.onclick = () => {
+                db.ref('users/' + auth.currentUser.uid).update({ avatar: url });
+                toggleAvatarModal();
+            };
+            grid.appendChild(img);
+        });
+    }
 
     async function smartRedirect(url, msg) {
         try {
@@ -147,11 +162,7 @@
     }
 
     function logout() {
-        if(auth.currentUser) {
-            db.ref('/status/' + auth.currentUser.uid).set({ state: 'offline' }).then(() => {
-                auth.signOut().then(() => location.href = "auth.html");
-            });
-        } else { auth.signOut().then(() => location.href = "auth.html"); }
+        auth.signOut().then(() => location.href = "auth.html");
     }
 </script>
 </body>
