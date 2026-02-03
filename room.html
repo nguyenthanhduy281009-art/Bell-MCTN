@@ -88,44 +88,39 @@
 
         auth.onAuthStateChanged(user => {
     if (user) {
-        // 1. Hiển thị Duy ở ô 0
-        setPlayer(0, user.photoURL);
-        
-        // 2. Cập nhật trạng thái Online của Duy
+        // 1. PHẢI ĐẶT ONLINE LÊN ĐẦU TIÊN
         db.ref('users/' + user.uid + '/status').set('online');
         db.ref('users/' + user.uid + '/status').onDisconnect().set('offline');
+
+        setPlayer(0, user.photoURL);
         
-        // Ghi danh vào phòng
         db.ref('rooms/' + user.uid + '/players/' + user.uid).set({ 
             name: user.displayName, 
             avatarUrl: user.photoURL || '' 
         });
 
-        // 3. TẢI BẠN BÈ (Sửa đường dẫn chuẩn để hiện danh sách)
-        // Mình lấy ở nhánh 'friends/' + user.uid vì trang Bạn Bè của Duy dùng nhánh này
+        // 2. TẢI BẠN BÈ (Thêm log để Duy kiểm tra ở F12)
         db.ref('friends/' + user.uid).on('value', s => {
             const list = document.getElementById('friend-list');
-            list.innerHTML = ''; // Xóa trắng để nạp lại
+            list.innerHTML = '';
             
             const friends = s.val() || {};
-            if (Object.keys(friends).length === 0) {
-                list.innerHTML = '<div style="text-align:center;padding:20px;opacity:0.5;font-size:12px;">Chưa có bạn bè</div>';
-                return;
-            }
+            console.log("Danh sách bạn bè tìm thấy:", friends);
 
             Object.entries(friends).forEach(([fUid, fData]) => {
-                // Kiểm tra xem bạn có Online không để hiện nút MỜI
+                // Lắng nghe trạng thái của từng người bạn
                 db.ref('users/' + fUid + '/status').on('value', st => {
-                    const isOnline = st.val() === 'online';
-                    updateFriendUI(fUid, fData, isOnline);
+                    const status = st.val();
+                    console.log(`Bạn ${fData.name} đang: ${status}`);
+                    updateFriendUI(fUid, fData, status === 'online');
                 });
             });
         });
 
-        // 4. Lắng nghe người chơi khác vào phòng Duy
+        // 3. Lắng nghe người vào phòng (như cũ)
         db.ref('rooms/' + user.uid + '/players').on('value', snap => {
             const players = snap.val() || {};
-            for(let i=1; i<=5; i++) setPlayer(i, null); // Reset các ô trống
+            for(let i=1; i<=5; i++) setPlayer(i, null);
             let count = 1;
             Object.entries(players).forEach(([pUid, pData]) => {
                 if (pUid !== user.uid && count <= 5) {
@@ -134,10 +129,7 @@
                 }
             });
         });
-
-    } else { 
-        location.href = 'auth.html'; 
-    }
+    } else { location.href = 'auth.html'; }
 });
 
         function setPlayer(index, url) {
