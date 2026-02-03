@@ -88,82 +88,60 @@
     const db = firebase.database(), auth = firebase.auth();
     const coinImg = 'https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100';
 
-    auth.onAuthStateChanged(user => {
-    if (user) {
-        // GIỮ TRẠNG THÁI ONLINE KHI CHUYỂN SANG TRANG NÀY
-        const userStatusRef = db.ref('/status/' + user.uid);
-        db.ref('.info/connected').on('value', (snap) => {
-            if (snap.val() === false) return;
-            userStatusRef.onDisconnect().set({ 
-                state: 'offline', 
-                last_changed: firebase.database.ServerValue.TIMESTAMP 
-            }).then(() => {
-                userStatusRef.set({ 
-                    state: 'online', 
-                    last_changed: firebase.database.ServerValue.TIMESTAMP 
-                });
-            });
-        });
-
-        // Các code xử lý riêng của từng trang (Load shop, load xếp hạng...) để ở dưới này
-    } else {
-        window.location.href = "auth.html";
-    }
-});
-    // DANH SÁCH TẤT CẢ VÁN (Thêm ván mới vào đây)
+    // ĐƯA DANH SÁCH VÀ BIẾN RA NGOÀI ĐỂ CÁC HÀM KHÁC ĐỌC ĐƯỢC
     const paddles = [
-    { id: 'default', name: 'Ván Gỗ Mục', cap: 3, price: 0, color: '#8d6e63', width: 130 },      // Nâu gỗ
-    { id: 'stone', name: 'Ván Đá Chẻ', cap: 5, price: 500, color: '#757575', width: 125 },      // Xám đá
-    { id: 'iron', name: 'Ván Sắt Rỉ', cap: 8, price: 800, color: '#b0bec5', width: 120 },       // Xám bạc
-    { id: 'bronze', name: 'Ván Đồng Đúc', cap: 10, price: 1000, color: '#cd7f32', width: 115 }, // Màu đồng
-    { id: 'leaf', name: 'Ván Lá Cây', cap: 12, price: 1200, color: '#4caf50', width: 110 },     // Xanh lá
-    { id: 'ocean', name: 'Ván Đại Dương', cap: 15, price: 1500, color: '#2196f3', width: 115 }, // Xanh biển
-    { id: 'pink', name: 'Ván Hồng Ngọc', cap: 20, price: 1800, color: '#f06292', width: 110 },  // Hồng đậm
-    { id: 'gold', name: 'Ván Vàng Ròng', cap: 25, price: 2000, color: '#ffd54f', width: 105 }, // Vàng (Ngắn hơn để khó hơn)
-    { id: 'diamond', name: 'Ván Kim Cương', cap: 28, price: 2500, color: '#4fc3f7', width: 100 }, // Xanh kim cương
-    { id: 'obsidian', name: 'Ván Hắc Điện Thạch', cap: 30, price: 3000, color: 'linear-gradient(45deg, #000000 30%, #4a008a 60%, #9d00ff 100%)', width: 90 } // Đen tuyền (Xịn nhất)
-];
+        { id: 'default', name: 'Ván Gỗ Mục', cap: 3, price: 0, color: '#8d6e63', width: 130 },
+        { id: 'stone', name: 'Ván Đá Chẻ', cap: 5, price: 500, color: '#757575', width: 125 },
+        { id: 'iron', name: 'Ván Sắt Rỉ', cap: 8, price: 800, color: '#b0bec5', width: 120 },
+        { id: 'bronze', name: 'Ván Đồng Đúc', cap: 10, price: 1000, color: '#cd7f32', width: 115 },
+        { id: 'leaf', name: 'Ván Lá Cây', cap: 12, price: 1200, color: '#4caf50', width: 110 },
+        { id: 'ocean', name: 'Ván Đại Dương', cap: 15, price: 1500, color: '#2196f3', width: 115 },
+        { id: 'pink', name: 'Ván Hồng Ngọc', cap: 20, price: 1800, color: '#f06292', width: 110 },
+        { id: 'gold', name: 'Ván Vàng Ròng', cap: 25, price: 2000, color: '#ffd54f', width: 105 },
+        { id: 'diamond', name: 'Ván Kim Cương', cap: 28, price: 2500, color: '#4fc3f7', width: 100 },
+        { id: 'obsidian', name: 'Ván Hắc Điện Thạch', cap: 30, price: 3000, color: 'linear-gradient(45deg, #000000 30%, #4a008a 60%, #9d00ff 100%)', width: 90 }
+    ];
 
     let currentIdx = 0, myCoins = 0, isInventoryMode = false;
     let ownedPaddles = JSON.parse(localStorage.getItem('ownedPaddles')) || ['default'];
 
-    // THEO DÕI DỮ LIỆU NGƯỜI DÙNG
     auth.onAuthStateChanged(user => {
         if (user) {
-            // Lấy xu
+            // 1. GIỮ TRẠNG THÁI ONLINE
+            const userStatusRef = db.ref('/status/' + user.uid);
+            db.ref('.info/connected').on('value', (snap) => {
+                if (snap.val() === false) return;
+                userStatusRef.onDisconnect().set({ state: 'offline', last_changed: firebase.database.ServerValue.TIMESTAMP })
+                .then(() => {
+                    userStatusRef.set({ state: 'online', last_changed: firebase.database.ServerValue.TIMESTAMP });
+                });
+            });
+
+            // 2. THEO DÕI XU
             db.ref('users/' + user.uid + '/coins').on('value', s => {
                 myCoins = s.val() || 0;
                 render();
             });
-            // Lấy danh sách ván đã mua từ server
-            db.ref('users/' + user.uid + '/ownedPaddles').once('value', s => {
+
+            // 3. THEO DÕI VÁN ĐÃ MUA
+            db.ref('users/' + user.uid + '/ownedPaddles').on('value', s => {
                 if (s.val()) {
                     ownedPaddles = s.val();
                     localStorage.setItem('ownedPaddles', JSON.stringify(ownedPaddles));
                     render();
                 }
             });
-        } else { location.href = 'index.html'; }
+        } else {
+            location.href = 'auth.html';
+        }
     });
 
-    // LOGIC KÉO TRƯỢT (PC & MOBILE)
+    // --- CÁC LOGIC KHÁC GIỮ NGUYÊN ---
     const slider = document.getElementById('carousel');
     let isDown = false, startX, scrollLeft;
-
-    const startAction = (e) => {
-        isDown = true;
-        startX = (e.pageX || e.touches[0].pageX) - slider.offsetLeft;
-        scrollLeft = slider.scrollLeft;
-    };
+    const startAction = (e) => { isDown = true; startX = (e.pageX || e.touches[0].pageX) - slider.offsetLeft; scrollLeft = slider.scrollLeft; };
     const stopAction = () => isDown = false;
-    const moveAction = (e) => {
-        if (!isDown) return;
-        e.preventDefault();
-        const x = (e.pageX || e.touches[0].pageX) - slider.offsetLeft;
-        const walk = (x - startX) * 2;
-        slider.scrollLeft = scrollLeft - walk;
-    };
-
+    const moveAction = (e) => { if (!isDown) return; e.preventDefault(); const x = (e.pageX || e.touches[0].pageX) - slider.offsetLeft; const walk = (x - startX) * 2; slider.scrollLeft = scrollLeft - walk; };
     slider.addEventListener('mousedown', startAction);
     slider.addEventListener('touchstart', startAction, {passive: false});
     window.addEventListener('mouseup', stopAction);
@@ -180,47 +158,43 @@
     }
 
     function render() {
-    document.getElementById('coin-display').innerHTML = `${myCoins} <img src="${coinImg}" class="coin-img">`;
-    const list = isInventoryMode ? paddles.filter(p => ownedPaddles.includes(p.id)) : paddles;
-
-    slider.innerHTML = list.map((p) => {
-        const originalIdx = paddles.findIndex(orig => orig.id === p.id);
-        const isOwned = ownedPaddles.includes(p.id);
-        return `
-            <div class="item-wrapper ${originalIdx === currentIdx ? 'active' : ''}" onclick="select(${originalIdx})">
-                <div class="paddle-box">
-                    <div class="paddle-visual" style="background:${p.color}"></div>
-                    ${!isOwned ? '<div class="lock-icon">🔒</div>' : ''}
-                    <div class="price-label">${isOwned ? 'SỞ HỮU' : p.price + ' <img src="'+coinImg+'" class="coin-img">'}</div>
+        document.getElementById('coin-display').innerHTML = `${myCoins} <img src="${coinImg}" class="coin-img">`;
+        const list = isInventoryMode ? paddles.filter(p => ownedPaddles.includes(p.id)) : paddles;
+        slider.innerHTML = list.map((p) => {
+            const originalIdx = paddles.findIndex(orig => orig.id === p.id);
+            const isOwned = ownedPaddles.includes(p.id);
+            return `
+                <div class="item-wrapper ${originalIdx === currentIdx ? 'active' : ''}" onclick="select(${originalIdx})">
+                    <div class="paddle-box">
+                        <div class="paddle-visual" style="background:${p.color}"></div>
+                        ${!isOwned ? '<div class="lock-icon">🔒</div>' : ''}
+                        <div class="price-label">${isOwned ? 'SỞ HỮU' : p.price + ' <img src="'+coinImg+'" class="coin-img">'}</div>
+                    </div>
+                    <div style="margin-top:10px; font-size:12px; color:#888;">${p.name}</div>
                 </div>
-                <div style="margin-top:10px; font-size:12px; color:#888;">${p.name}</div>
-            </div>
-        `;
-    }).join('');
-    updateDetail();
-}
+            `;
+        }).join('');
+        updateDetail();
+    }
+
     function select(i) { currentIdx = i; render(); }
 
-   function updateDetail() {
-    const p = paddles[currentIdx], btn = document.getElementById('btn-main');
-    if (!p) return;
-    
-    const isOwned = ownedPaddles.includes(p.id);
-    document.getElementById('p-name').innerText = p.name;
-    
-    // Cập nhật 2 thông số: Chống chịu và Kích thước
-    document.getElementById('cap-value').innerText = `${p.cap} TẤN`;
-    document.getElementById('width-value').innerText = `${p.width}px`;
-
-    if (isOwned) {
-        const isEquipped = localStorage.getItem('selectedPaddle') === p.id;
-        btn.innerText = isEquipped ? "ĐANG DÙNG" : "TRANG BỊ";
-        btn.disabled = isEquipped;
-    } else {
-        btn.innerText = "NÂNG CẤP";
-        btn.disabled = myCoins < p.price;
+    function updateDetail() {
+        const p = paddles[currentIdx], btn = document.getElementById('btn-main');
+        if (!p) return;
+        const isOwned = ownedPaddles.includes(p.id);
+        document.getElementById('p-name').innerText = p.name;
+        document.getElementById('cap-value').innerText = `${p.cap} TẤN`;
+        document.getElementById('width-value').innerText = `${p.width}px`;
+        if (isOwned) {
+            const isEquipped = localStorage.getItem('selectedPaddle') === p.id;
+            btn.innerText = isEquipped ? "ĐANG DÙNG" : "TRANG BỊ";
+            btn.disabled = isEquipped;
+        } else {
+            btn.innerText = "NÂNG CẤP";
+            btn.disabled = myCoins < p.price;
+        }
     }
-}
 
     function equipPaddle(p) {
         localStorage.setItem('selectedPaddle', p.id);
@@ -230,39 +204,31 @@
     }
 
     function handleAction() {
-    const p = paddles[currentIdx], user = auth.currentUser;
-    if (!p || !user) return;
-    const isOwned = ownedPaddles.includes(p.id);
-
-    if (isOwned) {
-        equipPaddle(p);
-        render();
-        alert("Đã trang bị: " + p.name);
-    } else {
-        // KIỂM TRA MUA THEO THỨ TỰ
-        const prevPaddle = paddles[currentIdx - 1];
-        const canBuy = currentIdx === 0 || ownedPaddles.includes(prevPaddle.id);
-
-        if (!canBuy) {
-            alert("Bạn phải sở hữu " + prevPaddle.name + " trước đã!");
-            return;
-        }
-
-        if (myCoins >= p.price) {
-            if (confirm("Mua " + p.name + " với " + p.price + " xu?")) {
-                db.ref('users/' + user.uid + '/coins').set(myCoins - p.price).then(() => {
-                    ownedPaddles.push(p.id);
-                    db.ref('users/' + user.uid + '/ownedPaddles').set(ownedPaddles);
-                    localStorage.setItem('ownedPaddles', JSON.stringify(ownedPaddles));
-                    equipPaddle(p);
-                    render();
-                });
-            }
+        const p = paddles[currentIdx], user = auth.currentUser;
+        if (!p || !user) return;
+        const isOwned = ownedPaddles.includes(p.id);
+        if (isOwned) {
+            equipPaddle(p);
+            render();
+            alert("Đã trang bị: " + p.name);
         } else {
-            alert("Bạn không đủ xu!");
+            const prevPaddle = paddles[currentIdx - 1];
+            if (currentIdx > 0 && !ownedPaddles.includes(prevPaddle.id)) {
+                alert("Bạn phải sở hữu " + prevPaddle.name + " trước đã!");
+                return;
+            }
+            if (myCoins >= p.price) {
+                if (confirm("Mua " + p.name + " với " + p.price + " xu?")) {
+                    db.ref('users/' + user.uid + '/coins').set(myCoins - p.price).then(() => {
+                        ownedPaddles.push(p.id);
+                        db.ref('users/' + user.uid + '/ownedPaddles').set(ownedPaddles);
+                        equipPaddle(p);
+                        render();
+                    });
+                }
+            } else { alert("Bạn không đủ xu!"); }
         }
     }
-}
 </script>
 </body>
 </html>
