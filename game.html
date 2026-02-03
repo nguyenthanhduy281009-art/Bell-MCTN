@@ -85,11 +85,17 @@
     };
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database(), auth = firebase.auth();
+    if(auth.currentUser) db.ref('users/' + auth.currentUser.uid + '/status').set('online');
     auth.onAuthStateChanged(user => {
     if (user) {
-        const userStatusRef = db.ref('users/' + user.uid + '/status'); // Sửa đường dẫn ở đây
-        userStatusRef.set('online'); // Sửa giá trị thành chuỗi đơn giản
-        userStatusRef.onDisconnect().set('offline'); 
+        // Đường dẫn và giá trị phải Y HỆT trang phòng chờ/bạn bè
+        const userStatusRef = db.ref('users/' + user.uid + '/status');
+        
+        // Chỉ gửi chuỗi 'online', không gửi Object
+        userStatusRef.set('online'); 
+        
+        // Khi tắt tab game, tự động về 'offline'
+        userStatusRef.onDisconnect().set('offline');
     } else {
         window.location.href = "auth.html";
     }
