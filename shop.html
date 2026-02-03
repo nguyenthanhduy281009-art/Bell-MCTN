@@ -88,6 +88,28 @@
     const db = firebase.database(), auth = firebase.auth();
     const coinImg = 'https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100';
 
+    auth.onAuthStateChanged(user => {
+    if (user) {
+        // GIỮ TRẠNG THÁI ONLINE KHI CHUYỂN SANG TRANG NÀY
+        const userStatusRef = db.ref('/status/' + user.uid);
+        db.ref('.info/connected').on('value', (snap) => {
+            if (snap.val() === false) return;
+            userStatusRef.onDisconnect().set({ 
+                state: 'offline', 
+                last_changed: firebase.database.ServerValue.TIMESTAMP 
+            }).then(() => {
+                userStatusRef.set({ 
+                    state: 'online', 
+                    last_changed: firebase.database.ServerValue.TIMESTAMP 
+                });
+            });
+        });
+
+        // Các code xử lý riêng của từng trang (Load shop, load xếp hạng...) để ở dưới này
+    } else {
+        window.location.href = "auth.html";
+    }
+});
     // DANH SÁCH TẤT CẢ VÁN (Thêm ván mới vào đây)
     const paddles = [
     { id: 'default', name: 'Ván Gỗ Mục', cap: 3, price: 0, color: '#8d6e63', width: 130 },      // Nâu gỗ
