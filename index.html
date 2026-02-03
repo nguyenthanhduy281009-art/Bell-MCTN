@@ -158,6 +158,14 @@
         if (user) {
             document.getElementById('loading').style.display = 'none';
             document.getElementById('main-content').style.display = 'flex';
+            // CẬP NHẬT ONLINE/OFFLINE (Dán lại vào đây)
+const userStatusRef = db.ref('/status/' + user.uid);
+db.ref('.info/connected').on('value', (snap) => {
+    if (snap.val() === false) return;
+    userStatusRef.onDisconnect().set({ state: 'offline', last_changed: firebase.database.ServerValue.TIMESTAMP }).then(() => {
+        userStatusRef.set({ state: 'online', last_changed: firebase.database.ServerValue.TIMESTAMP });
+    });
+});
             
             // Tên và Xu
             const displayName = user.displayName || user.email.split('@')[0];
