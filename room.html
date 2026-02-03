@@ -3,6 +3,9 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
         :root {
             --bg-color: #1a1a3c;
@@ -24,16 +27,14 @@
             overflow: hidden;
         }
 
-        /* CONTAINER CHÍNH */
         .room-container {
             display: flex;
             flex: 1;
             padding: 15px;
             gap: 15px;
-            height: calc(100vh - 80px); /* Chừa chỗ cho nút phía dưới */
+            height: calc(100vh - 80px);
         }
 
-        /* KHU VỰC BÀN CHƠI (BÊN TRÁI) */
         .game-main {
             flex: 2.5;
             display: flex;
@@ -41,26 +42,22 @@
             gap: 15px;
         }
 
-        /* Thanh Mức Cược */
         .bet-bar {
             background: var(--glass-bg);
             border-left: 4px solid var(--neon-blue);
             padding: 12px 20px;
             border-radius: 10px;
-            font-size: 14px;
             backdrop-filter: blur(10px);
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
-        .bet-bar span { color: #888; text-transform: uppercase; }
         .bet-bar input {
             background: none; border: none; color: var(--neon-blue);
             font-size: 18px; font-weight: bold; outline: none; width: 100px;
         }
 
-        /* Grid 6 ô người chơi */
         .slots-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -78,21 +75,18 @@
             justify-content: center;
             transition: 0.3s;
             position: relative;
+            overflow: hidden; /* Cắt ảnh thừa */
         }
 
-        .slot:hover { border-color: var(--neon-blue); box-shadow: 0 0 15px rgba(0, 210, 255, 0.3); }
-        
-        .slot i { color: rgba(255, 255, 255, 0.1); font-size: 30px; }
-        
-        /* Avatar người chơi trong ô */
         .slot img {
-            width: 85%; height: 85%;
-            border-radius: 15px;
+            width: 100%;
+            height: 100%;
             object-fit: cover;
             border: 2px solid var(--neon-blue);
         }
 
-        /* DANH SÁCH BẠN (BÊN PHẢI) */
+        .slot i { color: rgba(255, 255, 255, 0.1); font-size: 30px; }
+
         .friends-aside {
             flex: 1;
             background: var(--glass-bg);
@@ -108,16 +102,10 @@
             text-align: center;
             color: var(--neon-blue);
             font-weight: bold;
-            letter-spacing: 1px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            text-shadow: 0 0 10px var(--neon-blue);
         }
 
-        .friends-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px;
-        }
+        .friends-list { flex: 1; overflow-y: auto; padding: 10px; }
 
         .friend-card {
             display: flex;
@@ -130,7 +118,7 @@
         }
 
         .friend-info { display: flex; align-items: center; gap: 10px; }
-        .friend-img { width: 38px; height: 38px; border-radius: 10px; background: var(--accent-purple); }
+        .friend-img { width: 38px; height: 38px; border-radius: 10px; object-fit: cover; }
 
         .btn-invite {
             background: none; border: 1px solid var(--neon-blue);
@@ -138,34 +126,19 @@
             border-radius: 6px; font-size: 11px; cursor: pointer;
         }
 
-        /* THANH ĐIỀU KHIỂN DƯỚI CÙNG */
-        .bottom-actions {
-            padding: 15px;
-            display: flex;
-            gap: 15px;
-        }
+        .bottom-actions { padding: 15px; display: flex; gap: 15px; }
 
         .btn-control {
-            flex: 1;
-            padding: 16px;
-            border: none;
-            border-radius: 15px;
-            font-size: 16px;
-            font-weight: bold;
-            color: white;
-            cursor: pointer;
-            text-transform: uppercase;
+            flex: 1; padding: 16px; border: none; border-radius: 15px;
+            font-size: 16px; font-weight: bold; color: white; cursor: pointer;
         }
 
         .btn-exit { background: #ff4757; }
         .btn-start { background: var(--accent-purple); box-shadow: 0 0 20px rgba(157, 80, 187, 0.4); }
 
-        /* TỐI ƯU CHO ĐIỆN THOẠI (MOBILE) */
         @media (max-width: 768px) {
             .room-container { flex-direction: column; height: auto; overflow-y: auto; }
-            .slots-grid { grid-template-columns: repeat(3, 1fr); height: 250px; }
-            .friends-aside { min-height: 300px; }
-            .bottom-actions { position: sticky; bottom: 0; background: #0f0c29; }
+            .slots-grid { grid-template-columns: repeat(3, 1fr); min-height: 250px; }
         }
     </style>
 </head>
@@ -175,9 +148,8 @@
         <div class="game-main">
             <div class="bet-bar">
                 <span>Mức cược:</span>
-                <input type="number" value="1000">
+                <input type="number" id="bet-input" value="1000">
             </div>
-
             <div class="slots-grid" id="slots">
                 <div class="slot" id="s0"><i class="fas fa-plus"></i></div>
                 <div class="slot" id="s1"><i class="fas fa-plus"></i></div>
@@ -189,26 +161,55 @@
         </div>
 
         <div class="friends-aside">
-            <div class="aside-header">DANH SÁCH BẠN</div>
-            <div class="friends-list" id="friend-list">
-                <div class="friend-card">
-                    <div class="friend-info">
-                        <div class="friend-img" style="display:flex; align-items:center; justify-content:center;">N</div>
-                        <div style="font-size:13px; font-weight:bold;">Nguyễn Thành Duy</div>
-                    </div>
-                    <button class="btn-invite">MỜI</button>
-                </div>
-            </div>
+            <div class="aside-header">BẠN BÈ ONLINE</div>
+            <div class="friends-list" id="friend-list-content"></div>
         </div>
     </div>
 
     <div class="bottom-actions">
         <button class="btn-control btn-exit" onclick="location.href='friends.html'">Thoát</button>
-        <button class="btn-control btn-start">Bắt Đầu Trận Đấu</button>
+        <button class="btn-control btn-start">Bắt Đầu</button>
     </div>
 
     <script>
-        // Hàm này Duy gọi khi có người vào phòng
+        const firebaseConfig = {
+            apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
+            authDomain: "sky-dodge-8f537.firebaseapp.com",
+            databaseURL: "https://sky-dodge-8f537-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "sky-dodge-8f537",
+            storageBucket: "sky-dodge-8f537.firebasestorage.app",
+            messagingSenderId: "169224412363",
+            appId: "1:169224412363:web:de0d018158d8b34e854f4e"
+        };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.database(), auth = firebase.auth();
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                // Tự động đưa Duy vào ô đầu tiên
+                const myAvatar = user.photoURL || 'https://via.placeholder.com/100';
+                setPlayer(0, myAvatar);
+
+                // Load danh sách bạn bè
+                db.ref('users/' + user.uid + '/friends').on('value', s => {
+                    renderFriendsList(s.val() || {});
+                });
+
+                // Lắng nghe lời mời
+                db.ref('invites/' + user.uid).on('value', snap => {
+                    const data = snap.val();
+                    if(data) {
+                        if(confirm(data.fromName + " mời bạn vào phòng!")) {
+                            db.ref('invites/' + user.uid).remove();
+                            location.href = 'room.html?id=' + data.roomId;
+                        } else {
+                            db.ref('invites/' + user.uid).remove();
+                        }
+                    }
+                });
+            } else { location.href = 'auth.html'; }
+        });
+
         function setPlayer(index, avatarUrl) {
             const slot = document.getElementById(`s${index}`);
             if (avatarUrl) {
@@ -218,8 +219,27 @@
             }
         }
 
-        // Ví dụ: Duy là người đầu tiên
-        // setPlayer(0, 'link_anh_cua_duy.jpg');
+        function renderFriendsList(friends) {
+            const container = document.getElementById('friend-list-content');
+            container.innerHTML = Object.entries(friends).map(([uid, f]) => `
+                <div class="friend-card">
+                    <div class="friend-info">
+                        <img src="${f.avatarUrl || 'https://via.placeholder.com/40'}" class="friend-img">
+                        <div style="font-size:13px; font-weight:bold;">${f.name}</div>
+                    </div>
+                    <button class="btn-invite" onclick="sendInvite('${uid}', '${f.name}')">MỜI</button>
+                </div>
+            `).join('');
+        }
+
+        function sendInvite(fUid, fName) {
+            const user = auth.currentUser;
+            db.ref('invites/' + fUid).set({
+                fromName: user.displayName || "Bạn bè",
+                roomId: user.uid,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            }).then(() => alert("Đã gửi lời mời tới " + fName));
+        }
     </script>
 </body>
 </html>
