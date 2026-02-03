@@ -38,6 +38,25 @@
         .footer-menu { display: flex; justify-content: space-around; padding: 25px; background: white; border-radius: 30px 30px 0 0; box-shadow: 0 -5px 15px rgba(0,0,0,0.05); }
         .menu-item { background: none; border: none; font-size: 18px; font-weight: 700; color: #444; cursor: pointer; padding: 10px; }
         #loading { position: fixed; inset: 0; background: white; display: flex; justify-content: center; align-items: center; z-index: 100; font-weight: bold; }
+        /* Hiệu ứng khi nhấn giữ (Click) */
+.play-btn:active, .menu-item:active, .avatar-option:active {
+    transform: scale(0.92); /* Thu nhỏ lại một chút */
+    filter: brightness(0.8); /* Tối đi một chút */
+    transition: 0.1s;
+}
+
+/* Hiệu ứng riêng cho nút Play để giữ độ nảy */
+.play-btn:active {
+    transform: translateY(4px) scale(0.95);
+    box-shadow: 0 2px 0 #1b5e20; /* Giảm độ dày bóng đổ khi nhấn */
+}
+
+/* Hiệu ứng khi di chuột qua cho các ảnh đại diện */
+.avatar-option:hover {
+    transform: scale(1.1) rotate(3deg); /* Phóng to và hơi nghiêng */
+    border-color: #5d5dff;
+    box-shadow: 0 5px 15px rgba(93, 93, 255, 0.3);
+}
     </style>
 </head>
 <body>
