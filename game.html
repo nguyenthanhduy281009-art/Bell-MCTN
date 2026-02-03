@@ -87,12 +87,12 @@
     const db = firebase.database(), auth = firebase.auth();
     auth.onAuthStateChanged(user => {
     if (user) {
-        const userStatusRef = db.ref('users/' + user.uid + '/status');
+        // Gửi chuỗi "online" đơn giản để giống hệt Trang chủ/Cửa hàng của Duy
+        const statusRef = db.ref('users/' + user.uid + '/status');
+        statusRef.set('online'); 
         
-        // Sửa thành kiểu Object giống trang Bạn bè của Duy
-        userStatusRef.set({ state: 'online' }); 
-        
-        userStatusRef.onDisconnect().set({ state: 'offline' });
+        // Khi thoát game thì báo offline
+        statusRef.onDisconnect().set('offline');
     } else {
         window.location.href = "auth.html";
     }
