@@ -150,61 +150,7 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database(), auth = firebase.auth();
 
-        auth.onAuthStateChanged(user => {
-    if (user) {
-        // 1. Hiển thị Duy ở ô 0 (Luôn là chủ phòng trong mắt mình)
-        setPlayer(0, user.photoURL);
-
-        // 2. Lấy ID phòng từ URL (Nếu có), nếu không có thì lấy UID của Duy làm phòng chủ
-        const urlParams = new URLSearchParams(window.location.search);
-        const roomId = urlParams.get('id') || user.uid;
-
-        // 3. Tải danh sách bạn bè
-        db.ref('users/' + user.uid + '/friends').on('value', s => {
-            renderFriends(s.val() || {});
-        });
-
-        // 4. LẮNG NGHE NGƯỜI CHƠI TRONG PHÒNG (Cập nhật Avatar vào ô vuông)
-        db.ref('rooms/' + roomId + '/players').on('value', snap => {
-            const players = snap.val() || {};
-            
-            // Reset các ô từ 1 đến 5 về dấu cộng trước
-            for(let i = 1; i <= 5; i++) setPlayer(i, null);
-            
-            let count = 1;
-            Object.entries(players).forEach(([pUid, pData]) => {
-                // Nếu không phải là mình, thì hiện avatar họ vào các ô tiếp theo
-                if (pUid !== user.uid && count <= 5) {
-                    setPlayer(count, pData.avatarUrl);
-                    count++;
-                }
-            });
-        });
-
-        // 5. LẮNG NGHE LỜI MỜI (Dành cho người nhận)
-        db.ref('invites/' + user.uid).on('value', snap => {
-            const data = snap.val();
-            if (data) {
-                if (confirm(data.fromName + " mời bạn vào phòng!")) {
-                    // Nếu đồng ý: Ghi tên mình vào danh sách player của chủ phòng
-                    db.ref('rooms/' + data.roomId + '/players/' + user.uid).set({
-                        name: user.displayName,
-                        avatarUrl: user.photoURL || ''
-                    }).then(() => {
-                        db.ref('invites/' + user.uid).remove();
-                        // Chuyển hướng đến phòng của người mời
-                        location.href = 'room.html?id=' + data.roomId;
-                    });
-                } else {
-                    db.ref('invites/' + user.uid).remove();
-                }
-            }
-        });
-
-    } else { 
-        location.href = 'auth.html'; 
-    }
-});
+        auth.onAuthStateChanged
 
         function setPlayer(index, url) {
             const s = document.getElementById(`s${index}`);
