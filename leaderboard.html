@@ -52,6 +52,28 @@
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    auth.onAuthStateChanged(user => {
+    if (user) {
+        // GIỮ TRẠNG THÁI ONLINE KHI CHUYỂN SANG TRANG NÀY
+        const userStatusRef = db.ref('/status/' + user.uid);
+        db.ref('.info/connected').on('value', (snap) => {
+            if (snap.val() === false) return;
+            userStatusRef.onDisconnect().set({ 
+                state: 'offline', 
+                last_changed: firebase.database.ServerValue.TIMESTAMP 
+            }).then(() => {
+                userStatusRef.set({ 
+                    state: 'online', 
+                    last_changed: firebase.database.ServerValue.TIMESTAMP 
+                });
+            });
+        });
+
+        // Các code xử lý riêng của từng trang (Load shop, load xếp hạng...) để ở dưới này
+    } else {
+        window.location.href = "auth.html";
+    }
+});
     // Lấy dữ liệu
     db.ref('leaderboard').orderByChild('score').limitToLast(10).on('value', (snapshot) => {
         let list = [];
