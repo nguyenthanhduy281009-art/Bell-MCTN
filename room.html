@@ -129,84 +129,109 @@
         <button class="btn-control btn-start">Bắt Đầu</button>
     </div>
 
-    <script>
-        // CẤU HÌNH FIREBASE
-        const firebaseConfig = {
-            apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
-            authDomain: "sky-dodge-8f537.firebaseapp.com",
-            databaseURL: "https://sky-dodge-8f537-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "sky-dodge-8f537",
-            storageBucket: "sky-dodge-8f537.firebasestorage.app",
-            messagingSenderId: "169224412363",
-            appId: "1:169224412363:web:de0d018158d8b34e854f4e"
-        };
-        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-        const db = firebase.database(), auth = firebase.auth();
+   <script>
+    // 1. CẤU HÌNH FIREBASE (Duy giữ nguyên các thông số cũ của Duy nhé)
+    const firebaseConfig = {
+        apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
+        authDomain: "sky-dodge-8f537.firebaseapp.com",
+        databaseURL: "https://sky-dodge-8f537-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "sky-dodge-8f537",
+        storageBucket: "sky-dodge-8f537.firebasestorage.app",
+        messagingSenderId: "169224412363",
+        appId: "1:169224412363:web:de0d018158d8b34e854f4e"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database(), auth = firebase.auth();
 
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                // 1. Hiển thị Duy ở ô đầu tiên
-                setPlayer(0, user.photoURL || 'https://via.placeholder.com/100');
+    // 2. LOGIC CHÍNH KHI TRANG LOAD
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            console.log("Đã đăng nhập:", user.displayName); // Kiểm tra log để biết user đã vào chưa
 
-                // 2. Lắng nghe người chơi khác vào phòng (Dùng UID Duy làm ID phòng)
-                db.ref('rooms/' + user.uid + '/players').on('value', snap => {
-                    const players = snap.val() || {};
-                    for(let i=1; i<=5; i++) setPlayer(i, null); // Reset ô trống
-                    Object.values(players).forEach((p, i) => { if(i < 5) setPlayer(i+1, p.avatarUrl); });
-                });
+            // FIX LỖI AVATAR: Ưu tiên user.photoURL, nếu không có dùng ảnh mặc định
+            const myAvatar = user.photoURL || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y';
+            setPlayer(0, myAvatar);
 
-                // 3. Load danh sách bạn bè
-                db.ref('users/' + user.uid + '/friends').on('value', s => renderFriends(s.val() || {}));
+            // Tự động tạo phòng cho Duy (dùng UID của Duy)
+            const roomId = user.uid;
 
-                // 4. Lắng nghe lời mời
-                db.ref('invites/' + user.uid).on('value', snap => {
-                    const d = snap.val();
-                    if(d && confirm(d.fromName + " mời bạn vào phòng!")) {
-                        db.ref('rooms/' + d.roomId + '/players/' + user.uid).set({
-                            avatarUrl: user.photoURL || 'https://via.placeholder.com/100'
-                        }).then(() => {
-                            db.ref('invites/' + user.uid).remove();
-                            location.href = 'room.html?id=' + d.roomId;
-                        });
+            // FIX LỖI BẠN BÈ: Kiểm tra kỹ đường dẫn 'users/UID/friends' trong Firebase của Duy
+            db.ref('users/' + user.uid + '/friends').on('value', s => {
+                const friendsData = s.val();
+                console.log("Dữ liệu bạn bè:", friendsData); // Kiểm tra xem Firebase có trả về bạn bè không
+                renderFriends(friendsData || {});
+            });
+
+            // Lắng nghe người chơi khác vào phòng
+            db.ref('rooms/' + roomId + '/players').on('value', snap => {
+                const players = snap.val() || {};
+                // Reset ô 1-5
+                for(let i=1; i<=5; i++) setPlayer(i, null);
+                
+                // Hiển thị người chơi khác (bỏ qua bản thân Duy vì đã ở ô 0)
+                Object.entries(players).forEach(([pUid, pData], index) => {
+                    if (pUid !== user.uid && index < 5) {
+                        setPlayer(index + 1, pData.avatarUrl);
                     }
                 });
-            } else { location.href = 'auth.html'; }
-        });
+            });
 
-        function setPlayer(index, url) {
-            const s = document.getElementById(`s${index}`);
-            if (url) {
-                s.innerHTML = `<img src="${url}">`;
-                s.classList.add('occupied');
-            } else {
-                s.innerHTML = `<i class="fas fa-plus"></i>`;
-                s.classList.remove('occupied');
-            }
+        } else {
+            console.log("Chưa đăng nhập, quay lại auth.html");
+            location.href = 'auth.html';
+        }
+    });
+
+    // Hàm hiển thị Avatar vào ô vuông
+    function setPlayer(index, url) {
+        const s = document.getElementById(`s${index}`);
+        if (!s) return;
+        
+        if (url) {
+            // Thêm onerror để nếu link ảnh lỗi thì hiện dấu cộng, tránh icon rách
+            s.innerHTML = `<img src="${url}" onerror="this.src='https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'">`;
+            s.classList.add('occupied');
+        } else {
+            s.innerHTML = `<i class="fas fa-plus"></i>`;
+            s.classList.remove('occupied');
+        }
+    }
+
+    // Hàm render danh sách bạn bè
+    function renderFriends(data) {
+        const listContainer = document.getElementById('friend-list');
+        if (Object.keys(data).length === 0) {
+            listContainer.innerHTML = '<div style="text-align:center; padding:20px; color:#666;">Chưa có bạn bè nào</div>';
+            return;
         }
 
-        function renderFriends(data) {
-            document.getElementById('friend-list').innerHTML = Object.entries(data).map(([uid, f]) => `
-                <div class="friend-card">
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <img src="${f.avatarUrl || 'https://via.placeholder.com/40'}" class="friend-img">
-                        <span style="font-size:13px;">${f.name}</span>
-                    </div>
-                    <button class="btn-invite" onclick="invite('${uid}')">MỜI</button>
+        listContainer.innerHTML = Object.entries(data).map(([uid, f]) => `
+            <div class="friend-card">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <img src="${f.avatarUrl || 'https://via.placeholder.com/40'}" class="friend-img">
+                    <span style="font-size:13px; font-weight:bold;">${f.name || 'Người dùng'}</span>
                 </div>
-            `).join('');
-        }
+                <button class="btn-invite" onclick="invite('${uid}')">MỜI</button>
+            </div>
+        `).join('');
+    }
 
-        function invite(uid) {
-            db.ref('invites/' + uid).set({
-                fromName: auth.currentUser.displayName || "Bạn bè",
-                roomId: auth.currentUser.uid
-            }).then(() => alert("Đã gửi lời mời!"));
-        }
+    function invite(uid) {
+        db.ref('invites/' + uid).set({
+            fromName: auth.currentUser.displayName || "Bạn bè",
+            roomId: auth.currentUser.uid,
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        }).then(() => alert("Đã gửi lời mời!"));
+    }
 
-        function quitRoom() {
-            const uid = auth.currentUser.uid;
-            db.ref('rooms/' + uid).remove().then(() => { location.href = 'friends.html'; });
+    function quitRoom() {
+        const user = auth.currentUser;
+        if (user) {
+            db.ref('rooms/' + user.uid).remove().then(() => {
+                location.href = 'friends.html';
+            });
         }
-    </script>
+    }
+</script> 
 </body>
 </html>
