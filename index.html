@@ -41,9 +41,42 @@
     </div>
 
     <div class="user-info">
-        <p>Chào mừng chiến binh: &nbsp;<b id="user-name">...</b></p>
-        <p>Số xu: &nbsp;<b id="user-coins">0</b></p>
+    <div class="user-profile">
+        <div class="avatar-container">
+            <img id="user-avatar" class="main-avatar" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" onclick="toggleAvatarModal()">
+            <div class="edit-badge"><i class="fas fa-camera"></i></div>
+        </div>
+        <div>
+            <p class="welcome-text">Xin chào: <b id="user-name">[Tên người dùng]</b></p>
+            <p class="coin-text">Số xu: <b id="user-coins">0</b></p>
+        </div>
     </div>
+</div>
+
+<div id="avatar-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="toggleAvatarModal()">X</span>
+        <h3>CHỌN ẢNH ĐẠI DIỆN</h3>
+        <div class="avatar-grid" id="avatar-options">
+            </div>
+    </div>
+</div>
+
+<style>
+    /* CSS cho bố cục mới */
+    .user-profile { display: flex; align-items: center; gap: 20px; padding: 10px 40px; }
+    .avatar-container { position: relative; cursor: pointer; }
+    .main-avatar { width: 80px; height: 80px; border-radius: 15px; border: 3px solid #5d5dff; object-fit: cover; background: white; }
+    .edit-badge { position: absolute; bottom: -5px; right: -5px; background: #5d5dff; color: white; width: 25px; height: 25px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; border: 2px solid white; }
+    
+    /* Modal chọn ảnh (Mô phỏng ảnh 74c19b.png) */
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; }
+    .modal-content { background: #e0e0e0; width: 80%; max-width: 500px; border-radius: 20px; padding: 20px; position: relative; text-align: center; }
+    .close-btn { position: absolute; top: 10px; right: 20px; font-size: 30px; font-weight: bold; cursor: pointer; color: #333; }
+    .avatar-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 20px; max-height: 300px; overflow-y: auto; padding: 10px; }
+    .avatar-option { width: 100%; aspect-ratio: 1/1; border-radius: 10px; cursor: pointer; border: 3px solid transparent; transition: 0.2s; background: white; }
+    .avatar-option:hover { transform: scale(1.1); border-color: #5d5dff; }
+</style>
 
     <div class="main-action">
         <button class="play-btn" onclick="smartRedirect('game.html', 'Trò chơi đang bảo trì!')">BẮT ĐẦU CHƠI</button>
