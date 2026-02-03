@@ -185,30 +185,52 @@
         const db = firebase.database(), auth = firebase.auth();
 
         auth.onAuthStateChanged(user => {
-            if (user) {
-                // Tự động đưa Duy vào ô đầu tiên
-                const myAvatar = user.photoURL || 'https://via.placeholder.com/100';
-                setPlayer(0, myAvatar);
+    if (user) {
+        // 1. Tự động đưa Duy vào ô đầu tiên
+        const myAvatar = user.photoURL || 'https://via.placeholder.com/100';
+        setPlayer(0, myAvatar);
 
-                // Load danh sách bạn bè
-                db.ref('users/' + user.uid + '/friends').on('value', s => {
-                    renderFriendsList(s.val() || {});
-                });
+        // 2. Lấy ID phòng (Dùng ID của Duy làm ID phòng cho đơn giản)
+        const roomId = user.uid; 
 
-                // Lắng nghe lời mời
-                db.ref('invites/' + user.uid).on('value', snap => {
-                    const data = snap.val();
-                    if(data) {
-                        if(confirm(data.fromName + " mời bạn vào phòng!")) {
-                            db.ref('invites/' + user.uid).remove();
-                            location.href = 'room.html?id=' + data.roomId;
-                        } else {
-                            db.ref('invites/' + user.uid).remove();
-                        }
-                    }
-                });
-            } else { location.href = 'auth.html'; }
+        // 3. LẮNG NGHE NGƯỜI VÀO PHÒNG (MỚI THÊM)
+        db.ref('rooms/' + roomId + '/players').on('value', snap => {
+            const players = snap.val() || {};
+            // Xóa sạch các ô từ 1-5 về dấu cộng trước khi vẽ lại
+            for(let i = 1; i <= 5; i++) setPlayer(i, null);
+
+            // Duyệt danh sách người chơi trong Firebase và đưa vào ô
+            Object.values(players).forEach((p, index) => {
+                // index + 1 vì Duy đã giữ ô số 0
+                if (index < 5) setPlayer(index + 1, p.avatarUrl);
+            });
         });
+
+        // 4. Load danh sách bạn bè
+        db.ref('users/' + user.uid + '/friends').on('value', s => {
+            renderFriendsList(s.val() || {});
+        });
+
+        // 5. Lắng nghe lời mời
+        db.ref('invites/' + user.uid).on('value', snap => {
+            const data = snap.val();
+            if(data) {
+                if(confirm(data.fromName + " mời bạn vào phòng!")) {
+                    // Khi đồng ý, thêm mình vào danh sách players của phòng đó trước khi đi
+                    db.ref('rooms/' + data.roomId + '/players/' + user.uid).set({
+                        name: user.displayName,
+                        avatarUrl: user.photoURL || 'https://via.placeholder.com/100'
+                    }).then(() => {
+                        db.ref('invites/' + user.uid).remove();
+                        location.href = 'room.html?id=' + data.roomId;
+                    });
+                } else {
+                    db.ref('invites/' + user.uid).remove();
+                }
+            }
+        });
+    } else { location.href = 'auth.html'; }
+});
 
         function setPlayer(index, avatarUrl) {
             const slot = document.getElementById(`s${index}`);
