@@ -149,6 +149,12 @@
     slider.addEventListener('mousemove', moveAction);
     slider.addEventListener('touchmove', moveAction, {passive: false});
 
+    function select(i) { 
+        if (isMoved) return; // Chống chọn nhầm khi đang vuốt
+        currentIdx = i; 
+        render(); 
+    }
+
     function toggleInventory() {
         isInventoryMode = !isInventoryMode;
         document.getElementById('btn-inventory').innerText = isInventoryMode ? "TẤT CẢ" : "KHO ĐỒ";
@@ -177,7 +183,6 @@
         updateDetail();
     }
 
-    function select(i) { currentIdx = i; render(); }
 
     function updateDetail() {
         const p = paddles[currentIdx], btn = document.getElementById('btn-main');
