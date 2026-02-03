@@ -88,14 +88,12 @@
     if(auth.currentUser) db.ref('users/' + auth.currentUser.uid + '/status').set('online');
     auth.onAuthStateChanged(user => {
     if (user) {
-        // Đường dẫn và giá trị phải Y HỆT trang phòng chờ/bạn bè
         const userStatusRef = db.ref('users/' + user.uid + '/status');
         
-        // Chỉ gửi chuỗi 'online', không gửi Object
-        userStatusRef.set('online'); 
+        // Sửa thành kiểu Object giống trang Bạn bè của Duy
+        userStatusRef.set({ state: 'online' }); 
         
-        // Khi tắt tab game, tự động về 'offline'
-        userStatusRef.onDisconnect().set('offline');
+        userStatusRef.onDisconnect().set({ state: 'offline' });
     } else {
         window.location.href = "auth.html";
     }
