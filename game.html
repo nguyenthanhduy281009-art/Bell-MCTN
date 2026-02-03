@@ -85,7 +85,6 @@
     };
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database(), auth = firebase.auth();
-    if(auth.currentUser) db.ref('users/' + auth.currentUser.uid + '/status').set('online');
     auth.onAuthStateChanged(user => {
     if (user) {
         const userStatusRef = db.ref('users/' + user.uid + '/status');
