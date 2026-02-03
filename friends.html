@@ -112,24 +112,50 @@ db.ref('.info/connected').on('value', (snap) => {
     });
 
     async function searchUser() {
-        const name = document.getElementById('search-input').value.trim();
-        const resDiv = document.getElementById('search-result');
-        if (!name) return;
-        const snap = await db.ref('users').orderByChild('name').equalTo(name).once('value');
-        resDiv.style.display = "block";
-        resDiv.innerHTML = "";
-        if (!snap.exists()) return resDiv.innerHTML = "<p style='text-align:center'>Không tìm thấy!</p>";
-        
-        snap.forEach(child => {
-            if (child.key !== myId) {
-                resDiv.innerHTML += `
-                    <div class="friend-item" style="border:none">
-                        <div class="info"><div class="avatar">${child.val().name[0]}</div><b>${child.val().name}</b></div>
-                        <button class="btn-sm" style="background:var(--primary)" onclick="sendRequest('${child.key}', '${child.val().name}')">Kết bạn</button>
-                    </div>`;
-            }
-        });
+    const name = document.getElementById('search-input').value.trim();
+    const resDiv = document.getElementById('search-result');
+    if (!name) return;
+
+    // 1. Lấy danh sách ID bạn bè hiện tại để đối chiếu
+    const friendSnap = await db.ref('friends/' + myId).once('value');
+    const friendIds = friendSnap.exists() ? Object.keys(friendSnap.val()) : [];
+
+    // 2. Tìm kiếm người dùng theo tên
+    const snap = await db.ref('users').orderByChild('name').equalTo(name).once('value');
+    
+    resDiv.style.display = "block";
+    resDiv.innerHTML = "";
+
+    if (!snap.exists()) {
+        return resDiv.innerHTML = "<p style='text-align:center'>Không tìm thấy người dùng này!</p>";
     }
+
+    let foundAny = false;
+    snap.forEach(child => {
+        const userId = child.key;
+        const userData = child.val();
+
+        // 3. ĐIỀU KIỆN LỌC: 
+        // - Không phải là mình (userId !== myId)
+        // - Không có trong danh sách bạn bè (!friendIds.includes(userId))
+        if (userId !== myId && !friendIds.includes(userId)) {
+            foundAny = true;
+            resDiv.innerHTML += `
+                <div class="friend-item" style="border:none">
+                    <div class="info">
+                        <div class="avatar">${userData.name[0]}</div>
+                        <b>${userData.name}</b>
+                    </div>
+                    <button class="btn-sm" style="background:var(--primary)" 
+                        onclick="sendRequest('${userId}', '${userData.name}')">Kết bạn</button>
+                </div>`;
+        }
+    });
+
+    if (!foundAny) {
+        resDiv.innerHTML = "<p style='text-align:center'>Người này đã là bạn bè hoặc chính là bạn!</p>";
+    }
+}
 
     async function sendRequest(fId, fName) {
         await db.ref('friendRequests/' + fId + '/' + myId).set({ from: myName });
