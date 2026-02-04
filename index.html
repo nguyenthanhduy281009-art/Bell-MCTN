@@ -194,10 +194,14 @@ db.ref('.info/connected').on('value', (snap) => {
             });
 
             // LẮNG NGHE AVATAR
-            db.ref('users/' + user.uid + 'avatarUrl').on('value', s => { 
-                document.getElementById('user-avatar').src = s.val() || avatarList[0]; 
-            });
-
+            db.ref('users/' + user.uid + '/avatarUrl').on('value', s => { 
+            // Bây giờ nó sẽ lắng nghe đúng chỗ mà hàm selectAvatar vừa lưu vào
+            if (s.val()) {
+                document.getElementById('user-avatar').src = s.val(); 
+            } else {
+                document.getElementById('user-avatar').src = avatarList[0];
+            }
+        });
             // Đồng bộ dữ liệu ban đầu
             db.ref('users/' + user.uid).update({ name: displayName, email: user.email });
 
