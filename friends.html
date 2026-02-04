@@ -95,16 +95,22 @@
     auth.onAuthStateChanged(user => {
         if (user) {
             myId = user.uid;
-            // Theo dõi trạng thái kết nối
-const myStatusRef = db.ref('/status/' + myId);
-db.ref('.info/connected').on('value', (snap) => {
-    if (snap.val() === false) return;
-    // Khi thoát game/đóng tab
-    myStatusRef.onDisconnect().set({ state: 'offline' }).then(() => {
-        // Khi đang mở game
-        myStatusRef.set({ state: 'online' });
-    });
-});
+            const myStatusRef = db.ref('/status/' + myId);
+            db.ref('.info/connected').on('value', (snap) => {
+                if (snap.val() === false) return;
+                
+                // Khi thoát: Lưu trạng thái offline KÈM thời gian thoát
+                myStatusRef.onDisconnect().set({ 
+                    state: 'offline', 
+                    last_changed: firebase.database.ServerValue.TIMESTAMP 
+                }).then(() => {
+                    // Khi đang mở: Set online
+                    myStatusRef.set({ 
+                        state: 'online', 
+                        last_changed: firebase.database.ServerValue.TIMESTAMP 
+                    });
+                });
+            });
             db.ref('users/' + myId + '/name').once('value', s => myName = s.val());
             loadFriends();
             loadRequests();
@@ -112,50 +118,27 @@ db.ref('.info/connected').on('value', (snap) => {
     });
 
     async function searchUser() {
-    const name = document.getElementById('search-input').value.trim();
-    const resDiv = document.getElementById('search-result');
-    if (!name) return;
+        const name = document.getElementById('search-input').value.trim();
+        const resDiv = document.getElementById('search-result');
+        if (!name) return;
+        const friendSnap = await db.ref('friends/' + myId).once('value');
+        const friendIds = friendSnap.exists() ? Object.keys(friendSnap.val()) : [];
+        const snap = await db.ref('users').orderByChild('name').equalTo(name).once('value');
+        resDiv.style.display = "block";
+        resDiv.innerHTML = "";
+        if (!snap.exists()) return resDiv.innerHTML = "<p style='text-align:center'>Không tìm thấy!</p>";
 
-    // 1. Lấy danh sách ID bạn bè hiện tại để đối chiếu
-    const friendSnap = await db.ref('friends/' + myId).once('value');
-    const friendIds = friendSnap.exists() ? Object.keys(friendSnap.val()) : [];
-
-    // 2. Tìm kiếm người dùng theo tên
-    const snap = await db.ref('users').orderByChild('name').equalTo(name).once('value');
-    
-    resDiv.style.display = "block";
-    resDiv.innerHTML = "";
-
-    if (!snap.exists()) {
-        return resDiv.innerHTML = "<p style='text-align:center'>Không tìm thấy người dùng này!</p>";
+        let foundAny = false;
+        snap.forEach(child => {
+            const userId = child.key;
+            const userData = child.val();
+            if (userId !== myId && !friendIds.includes(userId)) {
+                foundAny = true;
+                resDiv.innerHTML += `<div class="friend-item" style="border:none"><div class="info"><div class="avatar">${userData.name[0]}</div><b>${userData.name}</b></div><button class="btn-sm" style="background:var(--primary)" onclick="sendRequest('${userId}', '${userData.name}')">Kết bạn</button></div>`;
+            }
+        });
+        if (!foundAny) resDiv.innerHTML = "<p style='text-align:center'>Người này đã là bạn hoặc chính là bạn!</p>";
     }
-
-    let foundAny = false;
-    snap.forEach(child => {
-        const userId = child.key;
-        const userData = child.val();
-
-        // 3. ĐIỀU KIỆN LỌC: 
-        // - Không phải là mình (userId !== myId)
-        // - Không có trong danh sách bạn bè (!friendIds.includes(userId))
-        if (userId !== myId && !friendIds.includes(userId)) {
-            foundAny = true;
-            resDiv.innerHTML += `
-                <div class="friend-item" style="border:none">
-                    <div class="info">
-                        <div class="avatar">${userData.name[0]}</div>
-                        <b>${userData.name}</b>
-                    </div>
-                    <button class="btn-sm" style="background:var(--primary)" 
-                        onclick="sendRequest('${userId}', '${userData.name}')">Kết bạn</button>
-                </div>`;
-        }
-    });
-
-    if (!foundAny) {
-        resDiv.innerHTML = "<p style='text-align:center'>Người này đã là bạn bè hoặc chính là bạn!</p>";
-    }
-}
 
     async function sendRequest(fId, fName) {
         await db.ref('friendRequests/' + fId + '/' + myId).set({ from: myName });
@@ -196,14 +179,60 @@ db.ref('.info/connected').on('value', (snap) => {
     async function reject(fId) { await db.ref('friendRequests/' + myId + '/' + fId).remove(); }
 
     function loadFriends() {
-    db.ref('friends/' + myId).on('value', snap => {
-        const list = document.getElementById('friend-list-content');
-        list.innerHTML = snap.exists() ? "" : "<p style='text-align:center;color:#666'>Chưa có bạn bè</p>";
-        
-        snap.forEach(child => {
-            const friendId = child.key;
-            const friendName = child.val().name;
+        db.ref('friends/' + myId).on('value', snap => {
+            const list = document.getElementById('friend-list-content');
+            list.innerHTML = snap.exists() ? "" : "<p style='text-align:center;color:#666'>Chưa có bạn bè</p>";
             
+            snap.forEach(child => {
+                const friendId = child.key;
+                const friendName = child.val().name;
+                const statusId = `status-${friendId}`;
+                
+                list.innerHTML += `
+                    <div class="friend-item">
+                        <div class="info">
+                            <div class="avatar">${friendName[0]}</div>
+                            <b>${friendName}</b>
+                        </div>
+                        <div id="${statusId}" class="status-dot offline">● Offline</div>
+                    </div>`;
+                
+                // Lắng nghe toàn bộ dữ liệu status thay vì chỉ biến .state
+                db.ref('/status/' + friendId).on('value', s => {
+                    const dot = document.getElementById(statusId);
+                    if (!dot || !s.exists()) return;
+
+                    const data = s.val();
+                    const now = Date.now();
+                    const lastChanged = data.last_changed || 0;
+                    const diffSeconds = (now - lastChanged) / 1000;
+
+                    // Logic: Nếu đang ghi 'online' HOẶC (offline nhưng chưa quá 30 giây)
+                    if (data.state === 'online' || (data.state === 'offline' && diffSeconds < 30)) {
+                        dot.innerText = "● Online";
+                        dot.className = "status-dot online";
+
+                        // Nếu họ thực sự offline, set một cái hẹn giờ để tắt đèn sau 30s
+                        if (data.state === 'offline') {
+                            setTimeout(() => {
+                                // Kiểm tra lại lần nữa sau 30s, nếu vẫn offline thì tắt đèn
+                                db.ref('/status/' + friendId).once('value', check => {
+                                    const d = check.val();
+                                    if (d.state === 'offline' && (Date.now() - d.last_changed) / 1000 >= 30) {
+                                        dot.innerText = "● Offline";
+                                        dot.className = "status-dot offline";
+                                    }
+                                });
+                            }, 30000);
+                        }
+                    } else {
+                        dot.innerText = "● Offline";
+                        dot.className = "status-dot offline";
+                    }
+                });
+            });
+        });
+    }
             // Tạo một ID html riêng cho mỗi chấm trạng thái
             const statusId = `status-${friendId}`;
             
