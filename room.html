@@ -87,7 +87,16 @@
 
     auth.onAuthStateChanged(user => {
         if (user) {
-            // --- 1. QUẢN LÝ TRẠNG THÁI ONLINE ---
+            // --- 1. LẤY ID PHÒNG ---
+            const urlParams = new URLSearchParams(window.location.search);
+            let hostId = urlParams.get('id');
+
+            if (!hostId) {
+                hostId = user.uid;
+                window.history.replaceState({}, '', '?id=' + user.uid);
+            }
+
+            // --- 2. QUẢN LÝ TRẠNG THÁI ONLINE ---
             const myStatusRef = db.ref('/status/' + user.uid);
             db.ref('.info/connected').on('value', (snap) => {
                 if (snap.val() === false) return;
@@ -95,39 +104,29 @@
                 .then(() => myStatusRef.set({ state: 'online', last_changed: firebase.database.ServerValue.TIMESTAMP }));
             });
 
-            // --- 2. XÁC ĐỊNH CHỦ PHÒNG & HIỆN AVATAR Ô S0 ---
-            const urlParams = new URLSearchParams(window.location.search);
-            const hostId = urlParams.get('id');
-            const roomOwnerId = hostId || user.uid; // Nếu không có id trên URL thì mình là chủ
+            // --- 3. TỰ ĐỘNG GHI DANH VÀO PHÒNG ---
+            const myRoomRef = db.ref('rooms/' + hostId + '/players/' + user.uid);
+            myRoomRef.set({
+                name: user.displayName || "Người chơi",
+                avatarUrl: user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'U'}`,
+                joinedAt: firebase.database.ServerValue.TIMESTAMP
+            });
+            myRoomRef.onDisconnect().remove();
 
-            if (!hostId || hostId === user.uid) {
-                setPlayer(0, user.photoURL); // Mình là chủ
-            } else {
-                // Mình là khách, lấy ảnh chủ phòng hiện vào s0
-                db.ref('status/' + hostId).once('value', s => {
-                    // Lưu ý: Đảm bảo node status có lưu avatar hoặc dùng user info
-                    db.ref('friends/' + user.uid + '/' + hostId).once('value', f => {
-                        setPlayer(0, f.val()?.avatarUrl || "https://ui-avatars.com/api/?name=Owner");
-                    });
-                });
-            }
-
-            // --- 3. HIỂN THỊ CÁC NGƯỜI CHƠI KHÁC (S1 - S5) ---
-            db.ref('rooms/' + roomOwnerId + '/players').on('value', snap => {
+            // --- 4. LẮNG NGHE VÀ HIỂN THỊ TẤT CẢ NGƯỜI TRONG PHÒNG ---
+            db.ref('rooms/' + hostId + '/players').on('value', snap => {
                 const players = snap.val() || {};
-                for(let i=1; i<=5; i++) setPlayer(i, null);
+                for(let i=0; i<=5; i++) setPlayer(i, null); // Reset ô
                 
-                let count = 1;
-                Object.entries(players).forEach(([pUid, pData]) => {
-                    // Nếu không phải là chủ phòng thì mới xếp vào ô khách
-                    if (pUid !== roomOwnerId && count <= 5) {
-                        setPlayer(count, pData.avatarUrl);
-                        count++;
-                    }
+                // Chuyển object thành mảng và sắp xếp theo thời gian vào phòng
+                const playerEntries = Object.entries(players).sort((a, b) => a[1].joinedAt - b[1].joinedAt);
+                
+                playerEntries.forEach(([pUid, pData], index) => {
+                    if (index <= 5) setPlayer(index, pData.avatarUrl);
                 });
             });
 
-            // --- 4. LẮNG NGHE LỜI MỜI ---
+            // --- 5. LẮNG NGHE LỜI MỜI ---
             db.ref('invites/' + user.uid).on('value', snap => {
                 const inviteData = snap.val();
                 if (inviteData) {
@@ -140,7 +139,7 @@
                 }
             });
 
-            // --- 5. DANH SÁCH BẠN BÈ ---
+            // --- 6. DANH SÁCH BẠN BÈ ---
             db.ref('friends/' + user.uid).on('value', s => {
                 const list = document.getElementById('friend-list');
                 list.innerHTML = ''; 
@@ -158,15 +157,9 @@
         }
     });
 
+    // Các hàm phụ trợ giữ nguyên logic của Duy
     async function joinRoom(hostId) {
         const user = auth.currentUser;
-        const playerRef = db.ref('rooms/' + hostId + '/players/' + user.uid);
-        playerRef.onDisconnect().remove();
-        await playerRef.set({
-            name: user.displayName,
-            avatarUrl: user.photoURL,
-            joinedAt: firebase.database.ServerValue.TIMESTAMP
-        });
         window.location.href = 'room.html?id=' + hostId; 
     }
 
@@ -209,18 +202,8 @@
         const user = auth.currentUser;
         const urlParams = new URLSearchParams(window.location.search);
         const hostId = urlParams.get('id');
-        
-        if (hostId && hostId !== user.uid) {
-            // Nếu là khách: Chỉ thoát khỏi phòng chủ
-            db.ref('rooms/' + hostId + '/players/' + user.uid).remove().then(() => {
-                location.href = 'friends.html';
-            });
-        } else {
-            // Nếu là chủ: Xóa cả phòng
-            db.ref('rooms/' + user.uid).remove().then(() => {
-                location.href = 'friends.html';
-            });
-        }
+        const ref = (hostId && hostId !== user.uid) ? db.ref('rooms/' + hostId + '/players/' + user.uid) : db.ref('rooms/' + user.uid);
+        ref.remove().then(() => location.href = 'friends.html');
     }
 </script>
 </body>
