@@ -87,57 +87,47 @@
 
     auth.onAuthStateChanged(user => {
         if (user) {
-            // 1. Quản lý trạng thái Online/Offline (Logic 30s)
+            // --- 1. QUẢN LÝ TRẠNG THÁI ONLINE ---
             const myStatusRef = db.ref('/status/' + user.uid);
             db.ref('.info/connected').on('value', (snap) => {
                 if (snap.val() === false) return;
-                myStatusRef.onDisconnect().set({ 
-                    state: 'offline', 
-                    last_changed: firebase.database.ServerValue.TIMESTAMP 
-                }).then(() => {
-                    myStatusRef.set({ 
-                        state: 'online', 
-                        last_changed: firebase.database.ServerValue.TIMESTAMP 
-                    });
-                });
+                myStatusRef.onDisconnect().set({ state: 'offline', last_changed: firebase.database.ServerValue.TIMESTAMP })
+                .then(() => myStatusRef.set({ state: 'online', last_changed: firebase.database.ServerValue.TIMESTAMP }));
             });
 
-            // 2. Hiển thị bản thân ở ô chủ phòng (s0)
-            setPlayer(0, user.photoURL);
+            // --- 2. XÁC ĐỊNH CHỦ PHÒNG & HIỆN AVATAR Ô S0 ---
+            const urlParams = new URLSearchParams(window.location.search);
+            const hostId = urlParams.get('id');
+            const roomOwnerId = hostId || user.uid; // Nếu không có id trên URL thì mình là chủ
 
-            // 3. Lắng nghe danh sách bạn bè & hiển thị trạng thái
-            db.ref('friends/' + user.uid).on('value', s => {
-                const list = document.getElementById('friend-list');
-                const friendsData = s.val() || {};
-                list.innerHTML = ''; 
-
-                Object.entries(friendsData).forEach(([fUid, fInfo]) => {
-                    db.ref('/status/' + fUid).on('value', st => {
-                        const data = st.val() || {};
-                        const now = Date.now();
-                        const diff = (now - (data.last_changed || 0)) / 1000;
-                        
-                        let isOnline = data.state === 'online' || (data.state === 'offline' && diff < 30);
-                        updateFriendUI(fUid, fInfo, isOnline);
+            if (!hostId || hostId === user.uid) {
+                setPlayer(0, user.photoURL); // Mình là chủ
+            } else {
+                // Mình là khách, lấy ảnh chủ phòng hiện vào s0
+                db.ref('status/' + hostId).once('value', s => {
+                    // Lưu ý: Đảm bảo node status có lưu avatar hoặc dùng user info
+                    db.ref('friends/' + user.uid + '/' + hostId).once('value', f => {
+                        setPlayer(0, f.val()?.avatarUrl || "https://ui-avatars.com/api/?name=Owner");
                     });
                 });
-            });
+            }
 
-            // 4. HIỂN THỊ AVATAR NGƯỜI VÀO PHÒNG (Ô s1 - s5)
-            db.ref('rooms/' + user.uid + '/players').on('value', snap => {
+            // --- 3. HIỂN THỊ CÁC NGƯỜI CHƠI KHÁC (S1 - S5) ---
+            db.ref('rooms/' + roomOwnerId + '/players').on('value', snap => {
                 const players = snap.val() || {};
                 for(let i=1; i<=5; i++) setPlayer(i, null);
                 
                 let count = 1;
                 Object.entries(players).forEach(([pUid, pData]) => {
-                    if (pUid !== user.uid && count <= 5) {
+                    // Nếu không phải là chủ phòng thì mới xếp vào ô khách
+                    if (pUid !== roomOwnerId && count <= 5) {
                         setPlayer(count, pData.avatarUrl);
                         count++;
                     }
                 });
             });
 
-            // 5. Lắng nghe lời mời từ người khác
+            // --- 4. LẮNG NGHE LỜI MỜI ---
             db.ref('invites/' + user.uid).on('value', snap => {
                 const inviteData = snap.val();
                 if (inviteData) {
@@ -150,26 +140,41 @@
                 }
             });
 
+            // --- 5. DANH SÁCH BẠN BÈ ---
+            db.ref('friends/' + user.uid).on('value', s => {
+                const list = document.getElementById('friend-list');
+                list.innerHTML = ''; 
+                Object.entries(s.val() || {}).forEach(([fUid, fInfo]) => {
+                    db.ref('/status/' + fUid).on('value', st => {
+                        const data = st.val() || {};
+                        const isOnline = data.state === 'online' || (Date.now() - (data.last_changed || 0)) / 1000 < 30;
+                        updateFriendUI(fUid, fInfo, isOnline);
+                    });
+                });
+            });
+
         } else {
             location.href = 'auth.html';
         }
     });
 
-    // Hàm để khách nhảy vào phòng của Duy
     async function joinRoom(hostId) {
         const user = auth.currentUser;
         const playerRef = db.ref('rooms/' + hostId + '/players/' + user.uid);
-        
         playerRef.onDisconnect().remove();
-        
         await playerRef.set({
             name: user.displayName,
             avatarUrl: user.photoURL,
             joinedAt: firebase.database.ServerValue.TIMESTAMP
         });
-        
-        // Nếu trang phòng của Duy cần load ID từ URL thì dùng dòng này:
-        // window.location.href = 'room.html?id=' + hostId;
+        window.location.href = 'room.html?id=' + hostId; 
+    }
+
+    function setPlayer(index, url) {
+        const s = document.getElementById(`s${index}`);
+        if (!s) return;
+        s.innerHTML = url ? `<img src="${url}" referrerpolicy="no-referrer" onerror="this.src='https://ui-avatars.com/api/?name=U'">` : `<i class="fas fa-plus"></i>`;
+        url ? s.classList.add('occupied') : s.classList.remove('occupied');
     }
 
     function updateFriendUI(uid, data, isOnline) {
@@ -184,7 +189,6 @@
                 <span style="font-size:12px;font-weight:bold;">${data.name || 'Bạn'}</span>
             </div>
             ${isOnline ? `<button class="btn-invite" onclick="invite('${uid}')">MỜI</button>` : '<span style="font-size:10px;opacity:0.3">OFF</span>'}`;
-        
         if (row) row.innerHTML = content;
         else {
             const div = document.createElement('div');
@@ -193,16 +197,9 @@
         }
     }
 
-    function setPlayer(index, url) {
-        const s = document.getElementById(`s${index}`);
-        if (!s) return;
-        s.innerHTML = url ? `<img src="${url}" referrerpolicy="no-referrer" onerror="this.src='https://ui-avatars.com/api/?name=U'">` : `<i class="fas fa-plus"></i>`;
-        url ? s.classList.add('occupied') : s.classList.remove('occupied');
-    }
-
     function invite(uid) {
         db.ref('invites/' + uid).set({ 
-            fromName: auth.currentUser.displayName || "Bạn bè", 
+            fromName: auth.currentUser.displayName, 
             roomId: auth.currentUser.uid, 
             timestamp: firebase.database.ServerValue.TIMESTAMP 
         }).then(() => alert("Đã gửi lời mời!"));
@@ -210,7 +207,16 @@
 
     function quitRoom() {
         const user = auth.currentUser;
-        if (user) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const hostId = urlParams.get('id');
+        
+        if (hostId && hostId !== user.uid) {
+            // Nếu là khách: Chỉ thoát khỏi phòng chủ
+            db.ref('rooms/' + hostId + '/players/' + user.uid).remove().then(() => {
+                location.href = 'friends.html';
+            });
+        } else {
+            // Nếu là chủ: Xóa cả phòng
             db.ref('rooms/' + user.uid).remove().then(() => {
                 location.href = 'friends.html';
             });
