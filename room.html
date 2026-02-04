@@ -117,7 +117,7 @@
 const myRoomRef = db.ref('rooms/' + hostId + '/players/' + user.uid);
 const myData = {
     name: user.displayName || "Người chơi",
-    avatarUrl: user.photoURL || "", 
+    avatarUrl: user.photoURL || "https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'U')}&background=random&color=fff", 
     joinedAt: firebase.database.ServerValue.TIMESTAMP
 };
 
