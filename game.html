@@ -83,6 +83,10 @@
         messagingSenderId: "169224412363",
         appId: "1:169224412363:web:de0d018158d8b34e854f4e"
     };
+
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database(), auth = firebase.auth();
+    
     auth.onAuthStateChanged(user => {
         if (user) {
             // 1. GIỮ TRẠNG THÁI ONLINE
