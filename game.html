@@ -83,21 +83,17 @@
         messagingSenderId: "169224412363",
         appId: "1:169224412363:web:de0d018158d8b34e854f4e"
     };
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    const db = firebase.database(), auth = firebase.auth();
     auth.onAuthStateChanged(user => {
-    if (user) {
-        // Gửi chuỗi "online" đơn giản để giống hệt Trang chủ/Cửa hàng của Duy
-        const statusRef = db.ref('users/' + user.uid + '/status');
-        statusRef.set('online'); 
-        
-        // Khi thoát game thì báo offline
-        statusRef.onDisconnect().set('offline');
-    } else {
-        window.location.href = "auth.html";
-    }
-});
-
+        if (user) {
+            // 1. GIỮ TRẠNG THÁI ONLINE
+            const userStatusRef = db.ref('/status/' + user.uid);
+            db.ref('.info/connected').on('value', (snap) => {
+                if (snap.val() === false) return;
+                userStatusRef.onDisconnect().set({ state: 'offline', last_changed: firebase.database.ServerValue.TIMESTAMP })
+                .then(() => {
+                    userStatusRef.set({ state: 'online', last_changed: firebase.database.ServerValue.TIMESTAMP });
+                });
+            });
       
 /* ===== CHẶN ZOOM TRÊN MÁY TÍNH ===== */
 document.addEventListener('wheel', function (e) {
