@@ -30,9 +30,15 @@
             width: 70px; height: 70px; background: rgba(0, 0, 0, 0.4); border: 1.5px solid rgba(0, 210, 255, 0.2);
             border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;
         }
-        .slot.occupied { border-color: var(--neon); box-shadow: 0 0 10px rgba(0, 210, 255, 0.3); }
-        .slot img { width: 100%; height: 100%; object-fit: cover; }
-        .slot i { font-size: 18px; color: rgba(255, 255, 255, 0.1); }
+        /* Đoạn mới của Duy đây */
+        .slot img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; 
+            border-radius: 10px;
+            filter: drop-shadow(0 0 5px rgba(0, 210, 255, 0.5));
+            display: block;
+        }
 
         .friends-aside { flex: 1; background: var(--glass); border-radius: 20px; backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; }
         .aside-header { padding: 15px; text-align: center; color: var(--neon); font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.05); }
@@ -106,11 +112,12 @@
 
             // --- 3. TỰ ĐỘNG GHI DANH VÀO PHÒNG ---
             const myRoomRef = db.ref('rooms/' + hostId + '/players/' + user.uid);
+            // Tìm đoạn: myRoomRef.set({ ... }) và sửa thành:
             myRoomRef.set({
                 name: user.displayName || "Người chơi",
-                avatarUrl: user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'U'}`,
+                avatarUrl: user.photoURL, // Đây chính là link ảnh người chơi đã chọn ngoài trang chủ
                 joinedAt: firebase.database.ServerValue.TIMESTAMP
-            });
+             });
             myRoomRef.onDisconnect().remove();
 
             // --- 4. LẮNG NGHE VÀ HIỂN THỊ TẤT CẢ NGƯỜI TRONG PHÒNG ---
@@ -164,11 +171,20 @@
     }
 
     function setPlayer(index, url) {
-        const s = document.getElementById(`s${index}`);
-        if (!s) return;
-        s.innerHTML = url ? `<img src="${url}" referrerpolicy="no-referrer" onerror="this.src='https://ui-avatars.com/api/?name=U'">` : `<i class="fas fa-plus"></i>`;
-        url ? s.classList.add('occupied') : s.classList.remove('occupied');
+    const s = document.getElementById(`s${index}`);
+    if (!s) return;
+
+    if (url) {
+        // Ưu tiên hiện ảnh thực tế, bỏ cái viền trắng và chỉnh ảnh lấp đầy ô
+        s.innerHTML = `<img src="${url}" referrerpolicy="no-referrer" 
+            style="width:100%; height:100%; object-fit:cover; display:block;"
+            onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?background=random&name=User'"
+        s.classList.add('occupied');
+    } else {
+        s.innerHTML = `<i class="fas fa-plus"></i>`;
+        s.classList.remove('occupied');
     }
+}
 
     function updateFriendUI(uid, data, isOnline) {
         const list = document.getElementById('friend-list');
