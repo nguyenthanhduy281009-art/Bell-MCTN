@@ -111,14 +111,19 @@
             });
 
             // --- 3. TỰ ĐỘNG GHI DANH VÀO PHÒNG ---
-            const myRoomRef = db.ref('rooms/' + hostId + '/players/' + user.uid);
-            // Tìm đoạn: myRoomRef.set({ ... }) và sửa thành:
-            myRoomRef.set({
-                name: user.displayName || "Người chơi",
-                avatarUrl: user.photoURL, // Đây chính là link ảnh người chơi đã chọn ngoài trang chủ
-                joinedAt: firebase.database.ServerValue.TIMESTAMP
-             });
-            myRoomRef.onDisconnect().remove();
+            // --- TRONG if (user) { ... } ---
+
+// 1. Ghi danh/Cập nhật bản thân vào phòng
+const myRoomRef = db.ref('rooms/' + hostId + '/players/' + user.uid);
+const myData = {
+    name: user.displayName || "Người chơi",
+    avatarUrl: user.photoURL || "", 
+    joinedAt: firebase.database.ServerValue.TIMESTAMP
+};
+
+// Dùng update để không bị đè dữ liệu cũ quá nhanh khi F5
+myRoomRef.update(myData); 
+myRoomRef.onDisconnect().remove();
 
             // --- 4. LẮNG NGHE VÀ HIỂN THỊ TẤT CẢ NGƯỜI TRONG PHÒNG ---
             db.ref('rooms/' + hostId + '/players').on('value', snap => {
