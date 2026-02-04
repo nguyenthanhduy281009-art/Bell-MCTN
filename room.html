@@ -179,16 +179,17 @@ myRoomRef.onDisconnect().remove();
     const s = document.getElementById(`s${index}`);
     if (!s) return;
 
-    // Nếu url tồn tại, tạo thẻ img với src là url đó
     if (url && url !== "") {
-        s.innerHTML = `<img src="${url}" referrerpolicy="no-referrer" onerror="this.src='https://ui-avatars.com/api/?name=Error'">`;
+        // Duy thêm style object-fit để ảnh không bị méo nhé
+        s.innerHTML = `<img src="${url}" referrerpolicy="no-referrer" 
+            style="width:100%; height:100%; object-fit:cover; display:block;"
+            onerror="this.src='https://ui-avatars.com/api/?name=User&background=333&color=fff'">`;
         s.classList.add('occupied');
     } else {
         s.innerHTML = `<i class="fas fa-plus"></i>`;
         s.classList.remove('occupied');
     }
 }
-
     function updateFriendUI(uid, data, isOnline) {
         const list = document.getElementById('friend-list');
         let row = document.getElementById('f-' + uid);
