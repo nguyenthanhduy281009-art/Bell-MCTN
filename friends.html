@@ -234,32 +234,6 @@
         });
     }
             // Tạo một ID html riêng cho mỗi chấm trạng thái
-            const statusId = `status-${friendId}`;
-            
-            list.innerHTML += `
-                <div class="friend-item">
-                    <div class="info">
-                        <div class="avatar">${friendName[0]}</div>
-                        <b>${friendName}</b>
-                    </div>
-                    <div id="${statusId}" class="status-dot offline">● Offline</div>
-                </div>`;
-            
-            // Lắng nghe trạng thái Online của người bạn này
-            db.ref('/status/' + friendId + '/state').on('value', s => {
-                const dot = document.getElementById(statusId);
-                if (!dot) return;
-                if (s.val() === 'online') {
-                    dot.innerText = "● Online";
-                    dot.className = "status-dot online";
-                } else {
-                    dot.innerText = "● Offline";
-                    dot.className = "status-dot offline";
-                }
-            });
-        });
-    });
-}
 
     function toggleRequests() {
         const box = document.getElementById('request-box');
