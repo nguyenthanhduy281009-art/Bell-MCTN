@@ -153,6 +153,24 @@
         'https://cdn-icons-png.flaticon.com/512/1154/1154444.png',
         'https://cdn-icons-png.flaticon.com/512/147/147144.png'
     ];
+    function selectAvatar(url) {
+    const user = firebase.auth().currentUser;
+    if (user) {
+        // 1. Lưu vào tài khoản của Duy (Để Duy đi đâu ảnh cũng đi theo)
+        user.updateProfile({
+            photoURL: url
+        }).then(() => {
+            // 2. LƯU VÀO DATABASE (Cực kỳ quan trọng để bạn bè thấy ảnh Duy trong phòng)
+            firebase.database().ref('users/' + user.uid).update({
+                avatarUrl: url,
+                name: user.displayName || "Người chơi"
+            });
+
+            console.log("Đã chốt avatar này!");
+            alert("Chọn nhân vật thành công!");
+        }).catch(err => console.error("Lỗi rồi Duy ơi:", err));
+    }
+}
 
     auth.onAuthStateChanged(user => {
         if (user) {
@@ -176,7 +194,7 @@ db.ref('.info/connected').on('value', (snap) => {
             });
 
             // LẮNG NGHE AVATAR
-            db.ref('users/' + user.uid + '/avatar').on('value', s => { 
+            db.ref('users/' + user.uid + 'avatarUrl').on('value', s => { 
                 document.getElementById('user-avatar').src = s.val() || avatarList[0]; 
             });
 
@@ -201,7 +219,7 @@ db.ref('.info/connected').on('value', (snap) => {
             img.src = url;
             img.className = 'avatar-option';
             img.onclick = () => {
-                db.ref('users/' + auth.currentUser.uid).update({ avatar: url });
+                selectAvatar(url)
                 toggleAvatarModal();
             };
             grid.appendChild(img);
