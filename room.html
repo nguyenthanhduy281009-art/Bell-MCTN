@@ -93,12 +93,14 @@
 
     auth.onAuthStateChanged(user => {
         if (user) {
-            // --- 1. LẤY ID PHÒNG ---
+            // --- 1. KHAI BÁO BIẾN DÙNG CHUNG ---
             const urlParams = new URLSearchParams(window.location.search);
-            let hostId = urlParams.get('id');
+            let hostId = urlParams.get('id') || user.uid;
+            const isHost = (hostId === user.uid);
+            const betInput = document.querySelector('.bet-bar input');
+            const startBtn = document.querySelector('.btn-start');
 
-            if (!hostId) {
-                hostId = user.uid;
+            if (!urlParams.get('id')) {
                 window.history.replaceState({}, '', '?id=' + user.uid);
             }
 
@@ -110,48 +112,41 @@
                 .then(() => myStatusRef.set({ state: 'online', last_changed: firebase.database.ServerValue.TIMESTAMP }));
             });
 
-            // --- 3. TỰ ĐỘNG GHI DANH VÀO PHÒNG ---
-            // --- TRONG if (user) { ... } ---
+            // --- 3. TỰ ĐỘNG GHI DANH ---
+            const myRoomRef = db.ref('rooms/' + hostId + '/players/' + user.uid);
+            myRoomRef.update({
+                name: user.displayName || "Người chơi",
+                avatarUrl: user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'U')}&background=random&color=fff`, 
+                joinedAt: firebase.database.ServerValue.TIMESTAMP
+            }); 
+            myRoomRef.onDisconnect().remove();
 
-// 1. Ghi danh/Cập nhật bản thân vào phòng
-const myRoomRef = db.ref('rooms/' + hostId + '/players/' + user.uid);
-const myData = {
-    name: user.displayName || "Người chơi",
-    avatarUrl: user.photoURL || "https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'U')}&background=random&color=fff", 
-    joinedAt: firebase.database.ServerValue.TIMESTAMP
-};
-
-// Dùng update để không bị đè dữ liệu cũ quá nhanh khi F5
-myRoomRef.update(myData); 
-myRoomRef.onDisconnect().remove();
-
-            // --- 4. LẮNG NGHE VÀ HIỂN THỊ TẤT CẢ NGƯỜI TRONG PHÒNG ---
+            // --- 4. HIỂN THỊ NGƯỜI CHƠI & VIỀN SẴN SÀNG ---
             db.ref('rooms/' + hostId + '/players').on('value', snap => {
                 const players = snap.val() || {};
-                for(let i=0; i<=5; i++) setPlayer(i, null); // Reset ô
+                for(let i=0; i<=5; i++) setPlayer(i, null);
                 
-                // Chuyển object thành mảng và sắp xếp theo thời gian vào phòng
                 const playerEntries = Object.entries(players).sort((a, b) => a[1].joinedAt - b[1].joinedAt);
-                
                 playerEntries.forEach(([pUid, pData], index) => {
-                    if (index <= 5) setPlayer(index, pData.avatarUrl);
+                    if (index <= 5) {
+                        setPlayer(index, pData.avatarUrl);
+                        const slot = document.getElementById(`s${index}`);
+                        if (slot) slot.style.border = pData.isReady ? "3px solid #2ecc71" : "1.5px solid rgba(0, 210, 255, 0.2)";
+                    }
                 });
             });
 
-            // --- 5. LẮNG NGHE LỜI MỜI ---
+            // --- 5. LỜI MỜI & BẠN BÈ ---
             db.ref('invites/' + user.uid).on('value', snap => {
                 const inviteData = snap.val();
                 if (inviteData) {
                     if (confirm(`Lời mời từ ${inviteData.fromName}. Tham gia?`)) {
                         joinRoom(inviteData.roomId);
                         db.ref('invites/' + user.uid).remove();
-                    } else {
-                        db.ref('invites/' + user.uid).remove();
-                    }
+                    } else db.ref('invites/' + user.uid).remove();
                 }
             });
 
-            // --- 6. DANH SÁCH BẠN BÈ ---
             db.ref('friends/' + user.uid).on('value', s => {
                 const list = document.getElementById('friend-list');
                 list.innerHTML = ''; 
@@ -164,32 +159,75 @@ myRoomRef.onDisconnect().remove();
                 });
             });
 
+            // --- 6. QUẢN LÝ CƯỢC ---
+            if (!isHost) {
+                betInput.readOnly = true;
+                betInput.style.opacity = "0.7";
+                startBtn.innerText = "SẴN SÀNG";
+                startBtn.style.background = "#3498db";
+            }
+
+            betInput.onchange = () => isHost && db.ref(`rooms/${hostId}/bet`).set(parseInt(betInput.value) || 0);
+            db.ref(`rooms/${hostId}/bet`).on('value', s => { if(s.exists()) betInput.value = s.val(); });
+
+            // --- 7. NÚT BẤM (GỘP CHUNG) ---
+            startBtn.onclick = async () => {
+                const snap = await db.ref(`rooms/${hostId}/players`).once('value');
+                const players = snap.val() || {};
+
+                if (!isHost) {
+                    const ready = !(players[user.uid]?.isReady || false);
+                    db.ref(`rooms/${hostId}/players/${user.uid}/isReady`).set(ready);
+                    startBtn.innerText = ready ? "HỦY SẴN SÀNG" : "SẴN SÀNG";
+                    startBtn.style.background = ready ? "#e67e22" : "#3498db";
+                } else {
+                    const bet = parseInt(betInput.value) || 0;
+                    const playerEntries = Object.entries(players);
+                    const allReady = playerEntries.every(([id, p]) => id === hostId || p.isReady === true);
+                    
+                    if (!allReady) return alert("Chờ mọi người sẵn sàng!");
+
+                    for (let [id, p] of playerEntries) {
+                        const uS = await db.ref(`users/${id}/coins`).once('value');
+                        if ((uS.val() || 0) < bet) return alert(`Người chơi ${p.name} không đủ xu!`);
+                    }
+
+                    const updates = {};
+                    playerEntries.forEach(([id, _]) => {
+                        updates[`users/${id}/coins`] = firebase.database.ServerValue.increment(-bet);
+                        updates[`rooms/${hostId}/players/${id}/state`] = 'alive';
+                    });
+                    updates[`rooms/${hostId}/status`] = 'playing';
+                    updates[`rooms/${hostId}/totalPrize`] = bet * playerEntries.length;
+                    db.ref().update(updates);
+                }
+            };
+
+            // --- 8. CHUYỂN TRANG ---
+            db.ref(`rooms/${hostId}/status`).on('value', s => {
+                if (s.val() === 'playing') window.location.href = 'game.html?id=' + hostId;
+            });
+
         } else {
             location.href = 'auth.html';
         }
     });
 
-    // Các hàm phụ trợ giữ nguyên logic của Duy
-    async function joinRoom(hostId) {
-        const user = auth.currentUser;
-        window.location.href = 'room.html?id=' + hostId; 
-    }
+    // --- CÁC HÀM PHỤ TRỢ ---
+    async function joinRoom(id) { window.location.href = 'room.html?id=' + id; }
 
     function setPlayer(index, url) {
-    const s = document.getElementById(`s${index}`);
-    if (!s) return;
-
-    if (url && url !== "") {
-        // Duy thêm style object-fit để ảnh không bị méo nhé
-        s.innerHTML = `<img src="${url}" referrerpolicy="no-referrer" 
-            style="width:100%; height:100%; object-fit:cover; display:block;"
-            onerror="this.src='https://ui-avatars.com/api/?name=User&background=333&color=fff'">`;
-        s.classList.add('occupied');
-    } else {
-        s.innerHTML = `<i class="fas fa-plus"></i>`;
-        s.classList.remove('occupied');
+        const s = document.getElementById(`s${index}`);
+        if (!s) return;
+        if (url) {
+            s.innerHTML = `<img src="${url}" referrerpolicy="no-referrer" style="width:100%; height:100%; object-fit:cover; display:block;" onerror="this.src='https://ui-avatars.com/api/?name=User&background=333&color=fff'">`;
+            s.classList.add('occupied');
+        } else {
+            s.innerHTML = `<i class="fas fa-plus"></i>`;
+            s.classList.remove('occupied');
+        }
     }
-}
+
     function updateFriendUI(uid, data, isOnline) {
         const list = document.getElementById('friend-list');
         let row = document.getElementById('f-' + uid);
