@@ -71,7 +71,7 @@
         <button class="btn-control btn-start">Bắt Đầu</button>
     </div>
 
-   <script>
+<script>
     const firebaseConfig = {
         apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
         authDomain: "sky-dodge-8f537.firebaseapp.com",
@@ -86,31 +86,58 @@
 
     auth.onAuthStateChanged(user => {
         if (user) {
-            // 1. Cập nhật trạng thái kiểu Object cho giống trang bạn bè
-            const statusRef = db.ref('users/' + user.uid + '/status');
-            statusRef.set({ state: 'online' }); 
-            statusRef.onDisconnect().set({ state: 'offline' });
-
-            // 2. Load ảnh bản thân vào Slot chủ phòng
-            setPlayer(0, user.photoURL);
-
-            // 3. Lấy danh sách bạn bè và theo dõi trạng thái
-            db.ref('friends/' + user.uid).on('value', s => {
-                const list = document.getElementById('friend-list');
-                const friendsData = s.val() || {}; // Đặt tên biến rõ ràng
-                list.innerHTML = ''; 
-
-                Object.entries(friendsData).forEach(([fUid, fInfo]) => {
-                    db.ref('users/' + fUid + '/status').on('value', st => {
-                        const val = st.val();
-                        // Kiểm tra val.state y hệt trang bạn bè
-                        const isOnline = val && val.state === 'online';
-                        updateFriendUI(fUid, fInfo, isOnline);
+            // 1. Cập nhật trạng thái kèm TIMESTAMP (Đồng bộ với trang bạn bè)
+            const myStatusRef = db.ref('/status/' + user.uid);
+            db.ref('.info/connected').on('value', (snap) => {
+                if (snap.val() === false) return;
+                myStatusRef.onDisconnect().set({ 
+                    state: 'offline', 
+                    last_changed: firebase.database.ServerValue.TIMESTAMP 
+                }).then(() => {
+                    myStatusRef.set({ 
+                        state: 'online', 
+                        last_changed: firebase.database.ServerValue.TIMESTAMP 
                     });
                 });
             });
 
-            // 4. Theo dõi người chơi trong phòng
+            setPlayer(0, user.photoURL);
+
+            // 2. Lấy danh sách bạn bè và tính toán 30s
+            db.ref('friends/' + user.uid).on('value', s => {
+                const list = document.getElementById('friend-list');
+                const friendsData = s.val() || {};
+                list.innerHTML = ''; 
+
+                Object.entries(friendsData).forEach(([fUid, fInfo]) => {
+                    // Lắng nghe vùng /status/ cho đồng bộ
+                    db.ref('/status/' + fUid).on('value', st => {
+                        if (!st.exists()) return updateFriendUI(fUid, fInfo, false);
+                        
+                        const data = st.val();
+                        const now = Date.now();
+                        const diff = (now - (data.last_changed || 0)) / 1000;
+
+                        // Logic 30 giây
+                        let isOnline = data.state === 'online' || (data.state === 'offline' && diff < 30);
+                        updateFriendUI(fUid, fInfo, isOnline);
+
+                        // Hẹn giờ tắt đèn nếu họ đang offline chờ 30s
+                        if (data.state === 'offline' && diff < 30) {
+                            setTimeout(() => {
+                                db.ref('/status/' + fUid).once('value', check => {
+                                    const d = check.val();
+                                    if (d.state === 'offline' && (Date.now() - d.last_changed) / 1000 >= 30) {
+                                        updateFriendUI(fUid, fInfo, false);
+                                    }
+                                });
+                            }, 30000);
+                        }
+                    });
+                });
+            });
+
+            // 3. Theo dõi người chơi trong phòng
             db.ref('rooms/' + user.uid + '/players').on('value', snap => {
                 const players = snap.val() || {};
                 for(let i=1; i<=5; i++) setPlayer(i, null);
