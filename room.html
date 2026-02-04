@@ -81,12 +81,13 @@
         messagingSenderId: "169224412363",
         appId: "1:169224412363:web:de0d018158d8b34e854f4e"
     };
+
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database(), auth = firebase.auth();
 
     auth.onAuthStateChanged(user => {
         if (user) {
-            // 1. Cập nhật trạng thái kèm TIMESTAMP (Đồng bộ với trang bạn bè)
+            // 1. Quản lý trạng thái Online/Offline (Logic 30s)
             const myStatusRef = db.ref('/status/' + user.uid);
             db.ref('.info/connected').on('value', (snap) => {
                 if (snap.val() === false) return;
@@ -101,46 +102,33 @@
                 });
             });
 
+            // 2. Hiển thị bản thân ở ô chủ phòng (s0)
             setPlayer(0, user.photoURL);
 
-            // 2. Lấy danh sách bạn bè và tính toán 30s
+            // 3. Lắng nghe danh sách bạn bè & hiển thị trạng thái
             db.ref('friends/' + user.uid).on('value', s => {
                 const list = document.getElementById('friend-list');
                 const friendsData = s.val() || {};
                 list.innerHTML = ''; 
 
                 Object.entries(friendsData).forEach(([fUid, fInfo]) => {
-                    // Lắng nghe vùng /status/ cho đồng bộ
                     db.ref('/status/' + fUid).on('value', st => {
-                        if (!st.exists()) return updateFriendUI(fUid, fInfo, false);
-                        
-                        const data = st.val();
+                        const data = st.val() || {};
                         const now = Date.now();
                         const diff = (now - (data.last_changed || 0)) / 1000;
-
-                        // Logic 30 giây
+                        
                         let isOnline = data.state === 'online' || (data.state === 'offline' && diff < 30);
                         updateFriendUI(fUid, fInfo, isOnline);
-
-                        // Hẹn giờ tắt đèn nếu họ đang offline chờ 30s
-                        if (data.state === 'offline' && diff < 30) {
-                            setTimeout(() => {
-                                db.ref('/status/' + fUid).once('value', check => {
-                                    const d = check.val();
-                                    if (d.state === 'offline' && (Date.now() - d.last_changed) / 1000 >= 30) {
-                                        updateFriendUI(fUid, fInfo, false);
-                                    }
-                                });
-                            }, 30000);
-                        }
                     });
                 });
             });
 
-            // 3. Theo dõi người chơi trong phòng
+            // 4. HIỂN THỊ AVATAR NGƯỜI VÀO PHÒNG (Ô s1 - s5)
             db.ref('rooms/' + user.uid + '/players').on('value', snap => {
                 const players = snap.val() || {};
+                // Reset các ô khách trước khi vẽ lại
                 for(let i=1; i<=5; i++) setPlayer(i, null);
+                
                 let count = 1;
                 Object.entries(players).forEach(([pUid, pData]) => {
                     if (pUid !== user.uid && count <= 5) {
@@ -149,10 +137,38 @@
                     }
                 });
             });
+
+            // 5. Lắng nghe lời mời từ người khác
+            db.ref('invites/' + user.uid).on('value', snap => {
+                const inviteData = snap.val();
+                if (inviteData) {
+                    if (confirm(`Lời mời từ ${inviteData.fromName}. Tham gia?`)) {
+                        joinRoom(inviteData.roomId);
+                        db.ref('invites/' + user.uid).remove();
+                    }
+                }
+            });
+
         } else {
             location.href = 'auth.html';
         }
     });
+
+    // Hàm để khách nhảy vào phòng của Duy
+    async function joinRoom(hostId) {
+        const user = auth.currentUser;
+        const playerRef = db.ref('rooms/' + hostId + '/players/' + user.uid);
+        
+        // Tự xóa avatar khi khách thoát/đóng tab
+        playerRef.onDisconnect().remove();
+        
+        await playerRef.set({
+            name: user.displayName,
+            avatarUrl: user.photoURL,
+            joinedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+        // Có thể chuyển hướng nếu cần: location.href = 'room.html?id=' + hostId;
+    }
 
     function updateFriendUI(uid, data, isOnline) {
         const list = document.getElementById('friend-list');
@@ -167,7 +183,7 @@
             </div>
             ${isOnline ? `<button class="btn-invite" onclick="invite('${uid}')">MỜI</button>` : '<span style="font-size:10px;opacity:0.3">OFF</span>'}`;
         
-        if (row) { row.innerHTML = content; } 
+        if (row) row.innerHTML = content;
         else {
             const div = document.createElement('div');
             div.id = 'f-' + uid; div.className = 'friend-card';
