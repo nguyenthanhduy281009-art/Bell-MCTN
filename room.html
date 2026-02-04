@@ -174,11 +174,9 @@
     const s = document.getElementById(`s${index}`);
     if (!s) return;
 
-    if (url) {
-        // Ưu tiên hiện ảnh thực tế, bỏ cái viền trắng và chỉnh ảnh lấp đầy ô
-        s.innerHTML = `<img src="${url}" referrerpolicy="no-referrer" 
-            style="width:100%; height:100%; object-fit:cover; display:block;"
-            onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?background=random&name=User'"
+    // Nếu url tồn tại, tạo thẻ img với src là url đó
+    if (url && url !== "") {
+        s.innerHTML = `<img src="${url}" referrerpolicy="no-referrer" onerror="this.src='https://ui-avatars.com/api/?name=Error'">`;
         s.classList.add('occupied');
     } else {
         s.innerHTML = `<i class="fas fa-plus"></i>`;
