@@ -194,7 +194,7 @@
         // --- 6. TỰ ĐỘNG CHUYỂN TRANG KHI TRẬN ĐẤU BẮT ĐẦU ---
         db.ref(`rooms/${hostId}/status`).on('value', s => {
             if (s.val() === 'playing') {
-                window.location.href = 'game.html?id=' + hostId;
+                window.location.href = 'battle.html?id=' + hostId;
             }
         });
 
