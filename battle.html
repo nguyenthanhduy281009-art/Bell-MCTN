@@ -29,7 +29,7 @@
             transition: background 0.3s, width 0.3s, box-shadow 0.3s;
         }
 
-        .ui { position: fixed; top: 20px; width: 100%; max-width: 370px; text-align: center; pointer-events: none; z-index: 200; }
+        .ui { position: fixed; top: 20px; width: 100%; max-width: 500px; text-align: center; pointer-events: none; z-index: 200; }
         .red { color: #ff4d4d; font-weight: bold; font-size: 26px; }
         .progress-bg { width: 80%; max-width: 300px; height: 15px; background: #333; margin: 5px auto; border-radius: 10px; overflow: hidden; }
         #bar { height: 100%; width: 0%; background: #4CAF50; transition: 0.1s; }
@@ -43,6 +43,9 @@
         .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
         button { padding: 15px; font-size: 18px; cursor: pointer; border: none; border-radius: 10px; font-weight: bold; width: 100%; }
         .btn-home { background: #f1c40f; color: black; }
+        
+        #stats-list { margin: 15px 0; text-align: left; font-size: 14px; max-height: 150px; overflow-y: auto; }
+        .stat-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #333; }
     </style>
 </head>
 <body>
@@ -54,165 +57,175 @@
     </div>
     <div id="paddle"></div>
     <div id="msg">
-        <div id="stats-content">
-            </div>
+        <h1 id="msg-title" style="color:#ffeb3b; margin-top:0;">ĐANG ĐẤU...</h1>
+        <div id="winner-info"></div>
+        <div id="stats-list"></div>
         <div class="btn-group" id="end-actions" style="display:none;">
-            <button class="btn-home" id="back-btn">QUAY LẠI PHÒNG</button>
+            <button class="btn-home" onclick="location.href='room.html?id='+hostId">QUAY LẠI PHÒNG</button>
         </div>
     </div>
 </div>
 
 <script>
-const firebaseConfig = {
-    apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
-    authDomain: "sky-dodge-8f537.firebaseapp.com",
-    databaseURL: "https://sky-dodge-8f537-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "sky-dodge-8f537",
-    storageBucket: "sky-dodge-8f537.firebasestorage.app",
-    messagingSenderId: "169224412363",
-    appId: "1:169224412363:web:de0d018158d8b34e854f4e"
-};
-if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-const db = firebase.database(), auth = firebase.auth();
+    // --- 1. FIREBASE CONFIG ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
+        authDomain: "sky-dodge-8f537.firebaseapp.com",
+        databaseURL: "https://sky-dodge-8f537-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "sky-dodge-8f537",
+        storageBucket: "sky-dodge-8f537.firebasestorage.app",
+        messagingSenderId: "169224412363",
+        appId: "1:169224412363:web:de0d018158d8b34e854f4e"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database(), auth = firebase.auth();
 
-const urlParams = new URLSearchParams(window.location.search);
-const hostId = urlParams.get('id');
-let isHost = false, gameOver = false, seconds = 0, score = 0, baseSpeed = 5;
+    // --- 2. BIẾN GAME ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const hostId = urlParams.get('id');
+    let isHost = false, gameOver = false, score = 0, seconds = 0, baseSpeed = 5;
 
-const paddle = document.getElementById('paddle');
-const msg = document.getElementById('msg');
-const statsContent = document.getElementById('stats-content');
-const currentMax = parseInt(localStorage.getItem('paddleCapacity')) || 100;
-const coinImg = 'https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100';
+    const currentMax = parseInt(localStorage.getItem('paddleCapacity')) || 100;
+    const currentColor = localStorage.getItem('paddleColor') || 'rgba(255, 255, 255, 0.4)';
+    const currentWidth = localStorage.getItem('paddleWidth') || '130px';
+    const paddle = document.getElementById('paddle');
 
-paddle.style.background = localStorage.getItem('paddleColor') || 'rgba(255, 255, 255, 0.4)';
-paddle.style.width = localStorage.getItem('paddleWidth') || '130px';
-document.getElementById('max-num').innerText = currentMax;
+    paddle.style.background = currentColor;
+    paddle.style.width = currentWidth.includes('px') ? currentWidth : currentWidth + 'px';
+    document.getElementById('max-num').innerText = currentMax;
 
-auth.onAuthStateChanged(user => {
-    if (!user || !hostId) return window.location.href = "auth.html";
-    isHost = (user.uid === hostId);
-    
-    db.ref(`rooms/${hostId}/players/${user.uid}`).update({ state: 'alive', survivalTime: 0 });
+    // --- 3. ĐỒNG BỘ BATTLE ---
+    auth.onAuthStateChanged(user => {
+        if (!user || !hostId) return window.location.href = "auth.html";
+        isHost = (user.uid === hostId);
+        
+        db.ref(`rooms/${hostId}/players/${user.uid}`).update({ state: 'alive', survivalTime: 0 });
 
-    db.ref(`rooms/${hostId}/status`).on('value', snap => {
-        const status = snap.val();
-        if (status === 'finished') renderWinnerBoard();
-        if (status === 'playing') { gameOver = false; spawn(); }
+        db.ref(`rooms/${hostId}/status`).on('value', snap => {
+            if (snap.val() === 'finished') renderResult();
+        });
+
+        if (isHost) hostMonitor();
+        spawnLoop();
     });
 
-    if (isHost) hostLogic();
-});
-
-const itemTypes = [
-    { url: 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w200', chance: 60, weight: 1, type: 'normal' },
+    // --- 4. LOGIC DI CHUYỂN & RƠI ĐỒ ---
+    const itemTypes = [
+        { url: 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w200', chance: 60, weight: 1, type: 'normal' },
         { url: 'https://drive.google.com/thumbnail?id=17JZiAW3NHJvEg2iN679TdNB_DVlKN7xz&sz=w200', chance: 25, weight: 2, type: 'normal' },
         { url: 'https://drive.google.com/thumbnail?id=1KeXUOKM47cK2pO6UNCfvygAOiMARMaH1&sz=w200', chance: 10, weight: 3, type: 'normal' },
-        { url: 'https://drive.google.com/thumbnail?id=19ryEq9TvAxEdriBohrz5zrEHY11xkapE&sz=w200', chance: 4, weight: 0.3, type: 'percent' },
-        { url: 'https://drive.google.com/thumbnail?id=1IKc60y8Dn1ouIsFFzYw22oIcHM0Oxnjk&sz=w200', chance: 1, weight: 0, type: 'danger' }
+        { url: 'https://drive.google.com/thumbnail?id=1IKc60y8Dn1ouIsFFzYw22oIcHM0Oxnjk&sz=w200', chance: 5, weight: 0, type: 'danger' }
     ];
 
+    function movePaddle(x) {
+        if (gameOver) return;
+        let rect = document.getElementById('game-container').getBoundingClientRect();
+        let safeX = Math.max(paddle.offsetWidth/2, Math.min(x - rect.left, rect.width - paddle.offsetWidth/2));
+        paddle.style.left = safeX + 'px';
+    }
+    window.addEventListener('mousemove', (e) => movePaddle(e.clientX));
+    window.addEventListener('touchmove', (e) => { e.preventDefault(); movePaddle(e.touches[0].clientX); }, { passive: false });
 
-function move(x) {
-    if (gameOver) return;
-    let rect = document.getElementById('game-container').getBoundingClientRect();
-    let xPos = Math.max(paddle.offsetWidth/2, Math.min(x - rect.left, rect.width - paddle.offsetWidth/2));
-    paddle.style.left = xPos + 'px';
-}
-window.addEventListener('mousemove', e => move(e.clientX));
-window.addEventListener('touchmove', e => { e.preventDefault(); move(e.touches[0].clientX); }, {passive: false});
-
-setInterval(() => { 
-    if (!gameOver) { 
-        seconds++; 
-        document.getElementById('timer').innerText = seconds; 
-        if(seconds % 5 === 0) baseSpeed += 0.5; 
-    } 
-}, 1000);
-
-function createItem() {
-    if (gameOver) return;
-    let rand = Math.random() * 100, cum = 0, sel = itemTypes[0];
-    for (let t of itemTypes) { cum += t.chance; if (rand < cum) { sel = t; break; } }
-    
-    const item = document.createElement('img');
-    item.src = sel.url; item.className = 'falling-item';
-    item.style.left = Math.random() * (document.getElementById('game-container').offsetWidth - 45) + 'px';
-    item.style.top = '-60px';
-    document.getElementById('game-container').appendChild(item);
-
-    let top = -60, speed = baseSpeed + Math.random() * 2;
-    const fall = setInterval(() => {
-        if (gameOver) { clearInterval(fall); item.remove(); return; }
-        top += speed; item.style.top = top + 'px';
-        const p = paddle.getBoundingClientRect(), i = item.getBoundingClientRect();
-        if (i.bottom >= p.top && i.right >= p.left && i.left <= p.right && i.top <= p.bottom) {
-            clearInterval(fall); item.remove();
-            if (sel.type === 'danger') return onDeath("CHẠM VẬT CẤM");
-            score += sel.weight;
-            document.getElementById('num').innerText = score;
-            document.getElementById('bar').style.width = Math.min((score/currentMax)*100, 100) + '%';
-            if (score >= currentMax) onDeath("QUÁ TẢI");
+    setInterval(() => {
+        if (!gameOver) {
+            seconds++;
+            document.getElementById('timer').innerText = seconds;
+            if (seconds % 7 === 0) baseSpeed += 0.8; 
         }
-        if (top > window.innerHeight) { clearInterval(fall); item.remove(); }
-    }, 20);
-}
+    }, 1000);
 
-function spawn() { if(!gameOver) { createItem(); setTimeout(spawn, Math.max(200, 800 - seconds*10)); } }
-
-function onDeath(reason) {
-    if (gameOver) return;
-    gameOver = true;
-    db.ref(`rooms/${hostId}/players/${auth.currentUser.uid}`).update({ 
-        state: 'dead', 
-        survivalTime: seconds 
-    });
-    msg.style.display = 'block';
-    statsContent.innerHTML = `<h2 style="color:red">BẠN ĐÃ THUA</h2><p>${reason}</p><p>Trụ được: ${seconds}s</p><p>Chờ kết quả...</p>`;
-}
-
-function hostLogic() {
-    db.ref(`rooms/${hostId}/players`).on('value', async snap => {
-        const players = snap.val(); if (!players || !isHost || gameOver) return;
-        const entries = Object.entries(players);
-        const alive = entries.filter(p => p[1].state === 'alive');
+    function createItem() {
+        if (gameOver) return;
+        let rand = Math.random() * 100, cum = 0, sel = itemTypes[0];
+        for (let t of itemTypes) { cum += t.chance; if (rand < cum) { sel = t; break; } }
         
-        if (alive.length === 1 || (alive.length === 0 && entries.length > 0)) {
-            const winner = alive.length === 1 ? alive[0] : entries.sort((a,b) => b[1].survivalTime - a[1].survivalTime)[0];
-            const prizeSnap = await db.ref(`rooms/${hostId}/totalPrize`).once('value');
-            const totalPrize = prizeSnap.val() || 0;
+        const item = document.createElement('img');
+        item.src = sel.url; item.className = 'falling-item';
+        item.style.left = Math.random() * (370 - 45) + 'px';
+        item.style.top = '-60px';
+        document.getElementById('game-container').appendChild(item);
 
-            db.ref().update({
-                [`users/${winner[0]}/coins`]: firebase.database.ServerValue.increment(totalPrize),
-                [`rooms/${hostId}/status`]: 'finished',
-                [`rooms/${hostId}/winnerInfo`]: { name: winner[1].name, prize: totalPrize }
-            });
+        let top = -60, speed = baseSpeed + Math.random() * 2;
+        const fall = setInterval(() => {
+            if (gameOver) { clearInterval(fall); item.remove(); return; }
+            top += speed; item.style.top = top + 'px';
+            const p = paddle.getBoundingClientRect(), i = item.getBoundingClientRect();
+            if (i.bottom >= p.top && i.right >= p.left && i.left <= p.right && i.top <= p.bottom) {
+                clearInterval(fall); item.remove();
+                if (sel.type === 'danger') return endGame("BẠN ĐÃ THUA!");
+                score += sel.weight;
+                document.getElementById('num').innerText = score;
+                document.getElementById('bar').style.width = Math.min((score/currentMax)*100, 100) + '%';
+                if (score >= currentMax) endGame("QUÁ TẢI RỒI!");
+            }
+            if (top > window.innerHeight) { clearInterval(fall); item.remove(); }
+        }, 20);
+    }
+
+    function spawnLoop() {
+        if (!gameOver) {
+            createItem();
+            setTimeout(spawnLoop, Math.max(250, 850 - (seconds * 12)));
         }
-    });
-}
+    }
 
-async function renderWinnerBoard() {
-    gameOver = true;
-    const snap = await db.ref(`rooms/${hostId}`).once('value');
-    const data = snap.val(); if (!data) return;
-    const winner = data.winnerInfo || { name: "N/A", prize: 0 };
-    
-    let html = `<h2 style="color:#ffeb3b">NGƯỜI CHIẾN THẮNG</h2>
-                <h1 style="color:#fff">${winner.name}</h1>
-                <p style="font-size:24px; color:#2ecc71;">+${winner.prize} <img src="${coinImg}" class="coin-icon"></p><hr>`;
-    
-    Object.values(data.players).sort((a,b) => (b.survivalTime||0)-(a.survivalTime||0)).forEach(p => {
-        html += `<div style="display:flex;justify-content:space-between;margin:8px 0; color:#ccc; font-size:14px">
-                    <span>${p.name}</span>
-                    <span>${p.survivalTime||0}s</span>
-                 </div>`;
-    });
+    // --- 5. KẾT THÚC & TÍNH ĐIỂM ĐỐI KHÁNG ---
+    function endGame(title) {
+        if (gameOver) return;
+        gameOver = true;
+        paddle.style.background = 'red';
+        document.getElementById('msg').style.display = 'block';
+        document.getElementById('msg-title').innerText = title;
+        document.getElementById('winner-info').innerText = "Đang chờ người chơi khác...";
+        
+        db.ref(`rooms/${hostId}/players/${auth.currentUser.uid}`).update({ 
+            state: 'dead', 
+            survivalTime: seconds 
+        });
+    }
 
-    statsContent.innerHTML = html;
-    document.getElementById('end-actions').style.display = 'block';
-    document.getElementById('back-btn').onclick = () => location.href = 'room.html?id=' + hostId;
-    msg.style.display = 'block';
-}
+    function hostMonitor() {
+        db.ref(`rooms/${hostId}/players`).on('value', async snap => {
+            const players = snap.val(); if (!players || !isHost || gameOver) return;
+            const entries = Object.entries(players);
+            const alive = entries.filter(p => p[1].state === 'alive');
+            
+            if (alive.length === 1 || (alive.length === 0 && entries.length > 0)) {
+                // Người thắng là người còn sống cuối cùng hoặc người trụ lâu nhất
+                const winner = alive.length === 1 ? alive[0] : entries.sort((a,b) => b[1].survivalTime - a[1].survivalTime)[0];
+                const prizeSnap = await db.ref(`rooms/${hostId}/totalPrize`).once('value');
+                const totalPrize = prizeSnap.val() || 0;
+
+                // Cộng toàn bộ tiền cược cho người thắng
+                db.ref().update({
+                    [`users/${winner[0]}/coins`]: firebase.database.ServerValue.increment(totalPrize),
+                    [`rooms/${hostId}/status`]: 'finished',
+                    [`rooms/${hostId}/winnerData`]: { name: winner[1].name, prize: totalPrize }
+                });
+            }
+        });
+    }
+
+    async function renderResult() {
+        gameOver = true;
+        const snap = await db.ref(`rooms/${hostId}`).once('value');
+        const data = snap.val(); if (!data) return;
+        
+        const winner = data.winnerData || { name: "N/A", prize: 0 };
+        document.getElementById('msg-title').innerText = "KẾT THÚC TRẬN";
+        document.getElementById('winner-info').innerHTML = `
+            <div style="font-size:20px; color:#2ecc71; margin-bottom:10px;">🏆 ${winner.name} THẮNG</div>
+            <div style="font-size:24px;">+${winner.prize} <img src="https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100" class="coin-icon"></div>
+        `;
+
+        let listHtml = "";
+        Object.values(data.players).sort((a,b) => b.survivalTime - a.survivalTime).forEach(p => {
+            listHtml += `<div class="stat-row"><span>${p.name}</span><span>${p.survivalTime}s</span></div>`;
+        });
+        document.getElementById('stats-list').innerHTML = listHtml;
+        document.getElementById('end-actions').style.display = 'block';
+        document.getElementById('msg').style.display = 'block';
+    }
 </script>
 </body>
 </html>
