@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title> SKY DODGE - GAME </title>
+    <title> SKY DODGE - BATTLE </title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -17,27 +17,19 @@
             justify-content: center; user-select: none; -webkit-user-select: none;
         }
         #game-container { 
-    position: relative;
-    width: 370px;
-    height: 100vh;
-    max-width: 500px;
-    background: radial-gradient(circle, #1a1a2e, #000); 
-    overflow: hidden;
-    border-left: 1px solid #333;
-    border-right: 1px solid #333;
-}
-
-       
+            position: relative; width: 370px; height: 100vh; max-width: 500px;
+            background: radial-gradient(circle, #1a1a2e, #000); 
+            overflow: hidden; border-left: 1px solid #333; border-right: 1px solid #333;
+        }
 
         #paddle {
             position: absolute; bottom: 120px; left: 50%;
             height: 18px; border-radius: 10px;
             transform: translateX(-50%); z-index: 100;
             transition: background 0.3s, width 0.3s, box-shadow 0.3s;
-            box-shadow: 0 0 15px var(--glow); /* Hiệu ứng tỏa sáng cho ván xịn */
         }
 
-        .ui { position: fixed; top: 20px; width: 100%; max-width: 500px; text-align: center; pointer-events: none; z-index: 200; }
+        .ui { position: fixed; top: 20px; width: 100%; max-width: 370px; text-align: center; pointer-events: none; z-index: 200; }
         .red { color: #ff4d4d; font-weight: bold; font-size: 26px; }
         .progress-bg { width: 80%; max-width: 300px; height: 15px; background: #333; margin: 5px auto; border-radius: 10px; overflow: hidden; }
         #bar { height: 100%; width: 0%; background: #4CAF50; transition: 0.1s; }
@@ -46,12 +38,11 @@
         #msg { 
             display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
             text-align: center; z-index: 300; background: rgba(0,0,0,0.95); padding: 25px; 
-            width: 80%; max-width: 400px; border: 2px solid red; border-radius: 15px; 
+            width: 80%; max-width: 400px; border: 2px solid #ffeb3b; border-radius: 15px; 
         }
         .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
         button { padding: 15px; font-size: 18px; cursor: pointer; border: none; border-radius: 10px; font-weight: bold; width: 100%; }
-        .btn-retry { background: #ff4d4d; color: white; }
-        .btn-home { background: #2196F3; color: white; }
+        .btn-home { background: #f1c40f; color: black; }
     </style>
 </head>
 <body>
@@ -63,18 +54,15 @@
     </div>
     <div id="paddle"></div>
     <div id="msg">
-        <h1 style="color:red; margin-top:0;">GAME OVER</h1>
-        <p id="final-stats" style="font-size: 18px;"></p>
-        <p id="coin-stats" style="color: #ffeb3b; font-weight: bold;"></p>
-        <div class="btn-group">
-            <button class="btn-retry" onclick="location.reload()">QUAY LẠI CHƠI TIẾP</button>
-            <button class="btn-home" onclick="location.href='index.html'">VỀ TRANG CHỦ</button>
+        <div id="stats-content">
+            </div>
+        <div class="btn-group" id="end-actions" style="display:none;">
+            <button class="btn-home" id="back-btn">QUAY LẠI PHÒNG</button>
         </div>
     </div>
 </div>
 
 <script>
-// --- 1. FIREBASE CONFIG ---
 const firebaseConfig = {
     apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
     authDomain: "sky-dodge-8f537.firebaseapp.com",
@@ -87,7 +75,6 @@ const firebaseConfig = {
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.database(), auth = firebase.auth();
 
-// --- 2. BIẾN TOÀN CỤC ---
 const urlParams = new URLSearchParams(window.location.search);
 const hostId = urlParams.get('id');
 let isHost = false, gameOver = false, seconds = 0, score = 0, baseSpeed = 5;
@@ -102,30 +89,29 @@ paddle.style.background = localStorage.getItem('paddleColor') || 'rgba(255, 255,
 paddle.style.width = localStorage.getItem('paddleWidth') || '130px';
 document.getElementById('max-num').innerText = currentMax;
 
-// --- 3. ĐỒNG BỘ TRẠNG THÁI ---
 auth.onAuthStateChanged(user => {
     if (!user || !hostId) return window.location.href = "auth.html";
     isHost = (user.uid === hostId);
     
-    // Đánh dấu bắt đầu sống sót
     db.ref(`rooms/${hostId}/players/${user.uid}`).update({ state: 'alive', survivalTime: 0 });
 
-    // Lắng nghe kết quả ván đấu
     db.ref(`rooms/${hostId}/status`).on('value', snap => {
-        if (snap.val() === 'finished') renderWinnerBoard();
-        if (snap.val() === 'playing') { gameOver = false; spawn(); }
+        const status = snap.val();
+        if (status === 'finished') renderWinnerBoard();
+        if (status === 'playing') { gameOver = false; spawn(); }
     });
 
     if (isHost) hostLogic();
 });
 
-// --- 4. LOGIC GAMEPLAY ---
 const itemTypes = [
-    { url: 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w200', chance: 65, weight: 1, type: 'normal' },
-    { url: 'https://drive.google.com/thumbnail?id=17JZiAW3NHJvEg2iN679TdNB_DVlKN7xz&sz=w200', chance: 20, weight: 2, type: 'normal' },
-    { url: 'https://drive.google.com/thumbnail?id=1KeXUOKM47cK2pO6UNCfvygAOiMARMaH1&sz=w200', chance: 10, weight: 3, type: 'normal' },
-    { url: 'https://drive.google.com/thumbnail?id=1IKc60y8Dn1ouIsFFzYw22oIcHM0Oxnjk&sz=w200', chance: 5, weight: 0, type: 'danger' }
-];
+    { url: 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w200', chance: 60, weight: 1, type: 'normal' },
+        { url: 'https://drive.google.com/thumbnail?id=17JZiAW3NHJvEg2iN679TdNB_DVlKN7xz&sz=w200', chance: 25, weight: 2, type: 'normal' },
+        { url: 'https://drive.google.com/thumbnail?id=1KeXUOKM47cK2pO6UNCfvygAOiMARMaH1&sz=w200', chance: 10, weight: 3, type: 'normal' },
+        { url: 'https://drive.google.com/thumbnail?id=19ryEq9TvAxEdriBohrz5zrEHY11xkapE&sz=w200', chance: 4, weight: 0.3, type: 'percent' },
+        { url: 'https://drive.google.com/thumbnail?id=1IKc60y8Dn1ouIsFFzYw22oIcHM0Oxnjk&sz=w200', chance: 1, weight: 0, type: 'danger' }
+    ];
+
 
 function move(x) {
     if (gameOver) return;
@@ -151,7 +137,7 @@ function createItem() {
     
     const item = document.createElement('img');
     item.src = sel.url; item.className = 'falling-item';
-    item.style.left = Math.random() * (window.innerWidth - 60) + 'px';
+    item.style.left = Math.random() * (document.getElementById('game-container').offsetWidth - 45) + 'px';
     item.style.top = '-60px';
     document.getElementById('game-container').appendChild(item);
 
@@ -174,7 +160,6 @@ function createItem() {
 
 function spawn() { if(!gameOver) { createItem(); setTimeout(spawn, Math.max(200, 800 - seconds*10)); } }
 
-// --- 5. XỬ LÝ CHẾT & PHÂN XỬ (WINNER TAKES ALL) ---
 function onDeath(reason) {
     if (gameOver) return;
     gameOver = true;
@@ -183,7 +168,7 @@ function onDeath(reason) {
         survivalTime: seconds 
     });
     msg.style.display = 'block';
-    statsContent.innerHTML = `<p style="color:red;">${reason}</p><p>TRỤ ĐƯỢC: ${seconds}S. CHỜ KẾT QUẢ...</p>`;
+    statsContent.innerHTML = `<h2 style="color:red">BẠN ĐÃ THUA</h2><p>${reason}</p><p>Trụ được: ${seconds}s</p><p>Chờ kết quả...</p>`;
 }
 
 function hostLogic() {
@@ -192,15 +177,11 @@ function hostLogic() {
         const entries = Object.entries(players);
         const alive = entries.filter(p => p[1].state === 'alive');
         
-        // Trận đấu kết thúc khi chỉ còn 1 người sống hoặc tất cả đã chết
         if (alive.length === 1 || (alive.length === 0 && entries.length > 0)) {
-            gameOver = true;
-            // Nếu còn 1 người sống thì người đó thắng, nếu chết hết thì người trụ lâu nhất thắng
             const winner = alive.length === 1 ? alive[0] : entries.sort((a,b) => b[1].survivalTime - a[1].survivalTime)[0];
             const prizeSnap = await db.ref(`rooms/${hostId}/totalPrize`).once('value');
             const totalPrize = prizeSnap.val() || 0;
 
-            // TRAO TOÀN BỘ TIỀN CƯỢC CHO NGƯỜI THẮNG
             db.ref().update({
                 [`users/${winner[0]}/coins`]: firebase.database.ServerValue.increment(totalPrize),
                 [`rooms/${hostId}/status`]: 'finished',
@@ -221,7 +202,7 @@ async function renderWinnerBoard() {
                 <p style="font-size:24px; color:#2ecc71;">+${winner.prize} <img src="${coinImg}" class="coin-icon"></p><hr>`;
     
     Object.values(data.players).sort((a,b) => (b.survivalTime||0)-(a.survivalTime||0)).forEach(p => {
-        html += `<div style="display:flex;justify-content:space-between;margin:8px 0; color:#ccc">
+        html += `<div style="display:flex;justify-content:space-between;margin:8px 0; color:#ccc; font-size:14px">
                     <span>${p.name}</span>
                     <span>${p.survivalTime||0}s</span>
                  </div>`;
@@ -232,3 +213,6 @@ async function renderWinnerBoard() {
     document.getElementById('back-btn').onclick = () => location.href = 'room.html?id=' + hostId;
     msg.style.display = 'block';
 }
+</script>
+</body>
+</html>
