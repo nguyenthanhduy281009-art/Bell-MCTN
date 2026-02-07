@@ -110,13 +110,20 @@
 
         // --- 1. QUẢN LÝ ONLINE & GHI DANH ---
         const myRoomRef = db.ref(`rooms/${hostId}/players/${user.uid}`);
-        myRoomRef.update({
-            name: user.displayName || "Người chơi",
-            avatarUrl: user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'U')}&background=random&color=fff`, 
-            joinedAt: firebase.database.ServerValue.TIMESTAMP,
-            isReady: isHost ? true : false
-        }); 
-        myRoomRef.onDisconnect().remove();
+       myRoomRef.update({
+           name: user.displayName || "Người chơi",
+           avatarUrl: user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'U')}&background=random&color=fff`,
+           joinedAt: firebase.database.ServerValue.TIMESTAMP,
+           isReady: isHost ? true : false,
+           state: 'waiting',
+           survivalTime: 0
+       });
+
+        myRoomRef.onDisconnect().update({
+            state: 'dead',
+            survivalTime: 0
+        });
+
 
         if (isHost) {
             db.ref(`rooms/${hostId}`).update({ status: 'waiting' });
@@ -239,7 +246,14 @@
         }).then(() => alert("Đã gửi lời mời!"));
     }
 
-    function quitRoom() { location.href = 'friends.html'; }
+    function quitRoom() {
+    if (hostId && user) {
+        db.ref(`rooms/${hostId}/players/${user.uid}`).update({
+            state: 'dead'
+        });
+    }
+    location.href = 'friends.html';
+}
 </script>
 </body>
 </html>
