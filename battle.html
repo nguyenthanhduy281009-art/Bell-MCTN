@@ -67,6 +67,27 @@
     const currentColor = localStorage.getItem('paddleColor') || 'rgba(255, 255, 255, 0.4)';
     const currentWidth = localStorage.getItem('paddleWidth') || '130px';
     const paddle = document.getElementById('paddle');
+    // --- KHÓA ZOOM MÀN HÌNH ---
+// Chặn zoom 2 ngón tay và Double tap
+document.addEventListener('touchstart', (e) => {
+    if (e.touches.length > 1) e.preventDefault();
+}, { passive: false });
+
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) e.preventDefault();
+    lastTouchEnd = now;
+}, false);
+
+// Chặn cuộn chuột/zoom bằng phím tắt trên máy tính
+document.addEventListener('wheel', (e) => {
+    if (e.ctrlKey) e.preventDefault();
+}, { passive: false });
+
+document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && ['+', '-', '=', '0'].includes(e.key)) e.preventDefault();
+});
 
     paddle.style.background = currentColor;
     paddle.style.width = currentWidth.includes('px') ? currentWidth : currentWidth + 'px';
@@ -220,7 +241,7 @@
                 ref.off();
             }
         });
-    }, 5000); 
+    }, 3000); 
 }
     // Tìm hàm renderResult() cũ của Duy và dán đè toàn bộ đoạn này vào:
     async function renderResult() {
