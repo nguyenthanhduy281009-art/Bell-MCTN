@@ -173,17 +173,17 @@
     let hostProcessing = false; // host xét thắng thua
 
 
-   async function endGame(title) {
-    if (!isPlaying || sentResult) return;
-    sentResult = true;
-
+  async function endGame(title) {
+    if (!isPlaying) return;
     isPlaying = false;
     clearTimeout(spawnTimer);
 
+    // Hiện thông báo riêng cho người đó biết là họ đã thua
     document.getElementById('msg').style.display = 'block';
     document.getElementById('msg-title').innerText = title;
-    document.getElementById('winner-info').innerText = "Đang chờ kết quả...";
+    document.getElementById('winner-info').innerText = "Vui lòng đợi những người khác...";
 
+    // Báo tử nhưng không dừng trận đấu của người khác
     await db.ref(`rooms/${hostId}/players/${auth.currentUser.uid}`).update({
         state: 'dead',
         survivalTime: seconds
@@ -222,6 +222,7 @@
         });
     }, 5000); 
 }
+    // Tìm hàm renderResult() cũ của Duy và dán đè toàn bộ đoạn này vào:
     async function renderResult() {
         const snap = await db.ref(`rooms/${hostId}`).once('value');
         const data = snap.val(); 
@@ -235,12 +236,35 @@
         `;
         
         let listHtml = "";
-        Object.values(data.players).sort((a,b) => b.survivalTime - a.survivalTime).forEach(p => {
-            listHtml += `<div class="stat-row"><span>${p.name}</span><span>${p.survivalTime}s</span></div>`;
+        const playersArr = Object.values(data.players).sort((a,b) => (b.survivalTime || 0) - (a.survivalTime || 0));
+        
+        playersArr.forEach(p => {
+            listHtml += `<div class="stat-row"><span>${p.name}</span><span>${p.survivalTime || 0}s</span></div>`;
         });
         document.getElementById('stats-list').innerHTML = listHtml;
         document.getElementById('end-actions').style.display = 'block';
         document.getElementById('msg').style.display = 'block';
+
+        // --- ĐÂY LÀ PHẦN GHI KỶ LỤC (CỦA RIÊNG BẠN) ---
+        const myId = auth.currentUser.uid;
+        const myScore = data.players[myId]?.survivalTime || 0;
+        const myName = localStorage.getItem('playerName') || 'Người chơi';
+
+        if (myScore > 0) {
+            const lbRef = db.ref(`leaderboard/${myId}`);
+            const lbSnap = await lbRef.once('value');
+            const oldData = lbSnap.val();
+
+            // Nếu chưa có kỷ lục hoặc điểm trận này cao hơn kỷ lục cũ thì mới lưu
+            if (!oldData || myScore > oldData.score) {
+                await lbRef.set({
+                    name: myName,
+                    score: myScore,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+                console.log("Đã cập nhật kỷ lục mới: " + myScore + "s");
+            }
+        }
     }
 </script>
 </body>
