@@ -193,8 +193,6 @@
 
    function hostMonitor() {
     const ref = db.ref(`rooms/${hostId}/players`);
-    
-    // Đợi 3 giây để tất cả người chơi đồng bộ trạng thái 'alive' rồi mới bắt đầu quét
     setTimeout(() => {
         ref.on('value', async snap => {
             if (!isHost || gameOver) return;
@@ -204,10 +202,11 @@
             const entries = Object.entries(players);
             const alive = entries.filter(([_, p]) => p.state === 'alive');
 
-            // Chỉ xét kết thúc khi đã bắt đầu có người chơi và số người sống <= 1
-            if (alive.length <= 1) {
+            // CHỈ KẾT THÚC KHI TẤT CẢ ĐÃ CHẾT (alive.length === 0)
+            if (entries.length >= 1 && alive.length === 0) {
                 gameOver = true;
                 
+                // Sắp xếp xem ai có survivalTime cao nhất để trao giải
                 entries.sort((a, b) => (b[1].survivalTime || 0) - (a[1].survivalTime || 0));
                 const winner = entries[0];
                 
@@ -221,7 +220,7 @@
                 ref.off();
             }
         });
-    }, 10000); // 3000ms là thời gian chờ ổn định kết nối
+    }, 5000); 
 }
     async function renderResult() {
         const snap = await db.ref(`rooms/${hostId}`).once('value');
