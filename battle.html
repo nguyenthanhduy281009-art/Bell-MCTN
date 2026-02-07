@@ -45,6 +45,7 @@
 </div>
 
 <script>
+    // --- 1. FIREBASE CONFIG ---
     const firebaseConfig = {
         apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
         authDomain: "sky-dodge-8f537.firebaseapp.com",
@@ -57,6 +58,7 @@
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database(), auth = firebase.auth();
 
+    // --- 2. KHỞI TẠO BIẾN ---
     const urlParams = new URLSearchParams(window.location.search);
     const hostId = urlParams.get('id');
     let isHost = false, gameOver = false, score = 0, seconds = 0, baseSpeed = 5;
@@ -71,24 +73,24 @@
     document.getElementById('max-num').innerText = currentMax;
     document.getElementById('back-btn').onclick = () => { location.href = 'room.html?id=' + hostId; };
 
+    // --- 3. LOGIC KẾT NỐI ---
     auth.onAuthStateChanged(user => {
         if (!user || !hostId) return window.location.href = "auth.html";
         isHost = (user.uid === hostId);
+        
+        // Đặt trạng thái ban đầu
         db.ref(`rooms/${hostId}/players/${user.uid}`).update({ state: 'alive', survivalTime: 0 });
+
+        // Lắng nghe xem trận đấu đã xong chưa
         db.ref(`rooms/${hostId}/status`).on('value', snap => {
             if (snap.val() === 'finished') renderResult();
         });
+
         if (isHost) hostMonitor();
         spawnLoop();
     });
 
-    const itemTypes = [
-        { url: 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w200', chance: 60, weight: 1, type: 'normal' },
-        { url: 'https://drive.google.com/thumbnail?id=17JZiAW3NHJvEg2iN679TdNB_DVlKN7xz&sz=w200', chance: 25, weight: 2, type: 'normal' },
-        { url: 'https://drive.google.com/thumbnail?id=1KeXUOKM47cK2pO6UNCfvygAOiMARMaH1&sz=w200', chance: 10, weight: 3, type: 'normal' },
-        { url: 'https://drive.google.com/thumbnail?id=1IKc60y8Dn1ouIsFFzYw22oIcHM0Oxnjk&sz=w200', chance: 5, weight: 0, type: 'danger' }
-    ];
-
+    // --- 4. GAMEPLAY ---
     function movePaddle(x) {
         if (gameOver) return;
         let rect = document.getElementById('game-container').getBoundingClientRect();
@@ -105,6 +107,13 @@
             if (seconds % 7 === 0) baseSpeed += 0.8; 
         }
     }, 1000);
+
+    const itemTypes = [
+        { url: 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w200', chance: 60, weight: 1, type: 'normal' },
+        { url: 'https://drive.google.com/thumbnail?id=17JZiAW3NHJvEg2iN679TdNB_DVlKN7xz&sz=w200', chance: 25, weight: 2, type: 'normal' },
+        { url: 'https://drive.google.com/thumbnail?id=1KeXUOKM47cK2pO6UNCfvygAOiMARMaH1&sz=w200', chance: 10, weight: 3, type: 'normal' },
+        { url: 'https://drive.google.com/thumbnail?id=1IKc60y8Dn1ouIsFFzYw22oIcHM0Oxnjk&sz=w200', chance: 5, weight: 0, type: 'danger' }
+    ];
 
     function createItem() {
         if (gameOver) return;
@@ -131,34 +140,48 @@
             if (top > window.innerHeight) { clearInterval(fall); item.remove(); }
         }, 20);
     }
-
     function spawnLoop() { if (!gameOver) { createItem(); setTimeout(spawnLoop, Math.max(250, 850 - (seconds * 12))); } }
 
+    // --- 5. LOGIC KẾT THÚC ---
     function endGame(title) {
+        // Chỉ dừng gameplay, không bật gameOver ngay để Host vẫn có thể chạy hostMonitor
         paddle.style.background = 'red';
         document.getElementById('msg').style.display = 'block';
         document.getElementById('msg-title').innerText = title;
         document.getElementById('winner-info').innerText = "Đang chờ người chơi khác...";
-        db.ref(`rooms/${hostId}/players/${auth.currentUser.uid}`).update({ state: 'dead', survivalTime: seconds });
-        if (!isHost) gameOver = true; 
+        
+        // Cập nhật lên server rằng mình đã "ngỏm"
+        db.ref(`rooms/${hostId}/players/${auth.currentUser.uid}`).update({ 
+            state: 'dead', 
+            survivalTime: seconds 
+        });
+
+        // Nếu mình không phải chủ phòng, mình có thể khóa gameOver
+        if (!isHost) gameOver = true;
     }
 
+    // Host sẽ canh chừng khi nào tất cả người chơi chết hết
     function hostMonitor() {
         db.ref(`rooms/${hostId}/players`).on('value', async snap => {
             const players = snap.val();
             if (!players || !isHost || gameOver) return;
+
             const entries = Object.entries(players);
             const alive = entries.filter(p => p[1].state === 'alive');
+
+            // Khi không còn ai sống
             if (alive.length === 0 && entries.length > 0) {
                 const roomSnap = await db.ref(`rooms/${hostId}`).once('value');
                 const roomData = roomSnap.val();
                 if (roomData.status === 'finished') return;
-                
-                gameOver = true;
+
+                // Xác định người thắng (survivalTime cao nhất)
                 const sorted = entries.sort((a, b) => (b[1].survivalTime || 0) - (a[1].survivalTime || 0));
                 const winner = sorted[0];
                 const totalPrize = roomData.totalPrize || 0;
 
+                // Cập nhật kết quả cuối cùng
+                gameOver = true;
                 db.ref().update({
                     [`users/${winner[0]}/coins`]: firebase.database.ServerValue.increment(totalPrize),
                     [`rooms/${hostId}/status`]: 'finished',
@@ -172,11 +195,18 @@
         gameOver = true;
         const snap = await db.ref(`rooms/${hostId}`).once('value');
         const data = snap.val(); if (!data) return;
+        
         const winner = data.winnerData || { name: "N/A", prize: 0 };
         document.getElementById('msg-title').innerText = "KẾT THÚC TRẬN";
-        document.getElementById('winner-info').innerHTML = `<div style="font-size:20px; color:#2ecc71; margin-bottom:10px;">🏆 ${winner.name} THẮNG</div><div style="font-size:24px;">+${winner.prize} <img src="https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100" class="coin-icon"></div>`;
+        document.getElementById('winner-info').innerHTML = `
+            <div style="font-size:20px; color:#2ecc71; margin-bottom:10px;">🏆 ${winner.name} THẮNG</div>
+            <div style="font-size:24px;">+${winner.prize} <img src="https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100" class="coin-icon"></div>
+        `;
+
         let listHtml = "";
-        Object.values(data.players).sort((a,b) => b.survivalTime - a.survivalTime).forEach(p => { listHtml += `<div class="stat-row"><span>${p.name}</span><span>${p.survivalTime}s</span></div>`; });
+        Object.values(data.players).sort((a,b) => b.survivalTime - a.survivalTime).forEach(p => {
+            listHtml += `<div class="stat-row"><span>${p.name}</span><span>${p.survivalTime}s</span></div>`;
+        });
         document.getElementById('stats-list').innerHTML = listHtml;
         document.getElementById('end-actions').style.display = 'block';
         document.getElementById('msg').style.display = 'block';
