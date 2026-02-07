@@ -150,7 +150,7 @@
             if (seconds % 7 === 0) baseSpeed += 0.8; 
             db.ref(`rooms/${hostId}/players/${auth.currentUser.uid}/survivalTime`).set(seconds);
         }
-    }, 1000);
+    }, 2000);
 
     function createItem() {
         if (!isPlaying) return;
