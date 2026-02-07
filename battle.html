@@ -174,46 +174,50 @@
 }
 
 
-    function hostMonitor() {
+   function hostMonitor() {
+    console.log("Host Monitor đang chạy..."); // Log để kiểm tra xem hàm có chạy không
     const playersRef = db.ref(`rooms/${hostId}/players`);
 
-    playersRef.on('value', snap => {
-    if (!isHost || hostProcessing || gameOver) return;
-    if (!snap.exists()) return;
+    playersRef.on('value', async snap => {
+        // 1. Kiểm tra quyền Host (ép kiểu chuỗi để so sánh chuẩn)
+        if (auth.currentUser.uid !== hostId || hostProcessing || gameOver) return;
+        if (!snap.exists()) return;
 
-    const players = snap.val();
-    const entries = Object.entries(players);
+        const players = snap.val();
+        const entries = Object.entries(players);
+        const alive = entries.filter(([_, p]) => p.state === 'alive');
 
-    const alive = entries.filter(([_, p]) => p.state === 'alive');
+        console.log("Số người còn sống:", alive.length);
 
-    // ✅ TẤT CẢ CHẾT → XỬ LÝ NGAY
-    if (alive.length === 0) {
-        hostProcessing = true;
-        gameOver = true;
-        playersRef.off();
+        // 2. Điều kiện kết thúc: Tất cả chết hoặc chỉ còn 1 người
+        if (alive.length <= 1) {
+            hostProcessing = true;
+            
+            // Lấy dữ liệu phòng để lấy tiền cược
+            const roomSnap = await db.ref(`rooms/${hostId}`).once('value');
+            const roomData = roomSnap.val();
+            const totalPrize = roomData ? (roomData.totalPrize || 0) : 0;
 
-        // fallback survivalTime
-        entries.forEach(([id, p]) => {
-            if (p.survivalTime == null) {
-                p.survivalTime = p.survivalTime ?? 0;
+            // Sắp xếp tìm người thắng
+            entries.sort((a, b) => (b[1].survivalTime || 0) - (a[1].survivalTime || 0));
+            const winner = entries[0];
 
-            }
-        });
+            console.log("Đã tìm ra người thắng:", winner[1].name);
 
-        entries.sort((a, b) => b[1].survivalTime - a[1].survivalTime);
-       const winner = entries[0];
-
-       db.ref(`rooms/${hostId}`).update({
-           status: 'finished',
-           winnerData: {
-               name: winner[1].name || 'Unknown',
-               prize: 0
-           }
-       });
-    }
- });
+            // 3. Cập nhật kết thúc
+            await db.ref(`rooms/${hostId}`).update({
+                status: 'finished',
+                winnerData: {
+                    name: winner[1].name || 'Vô danh',
+                    prize: totalPrize
+                }
+            });
+            
+            // Ngắt lắng nghe để tránh lặp
+            playersRef.off();
+        }
+    });
 }
-
     async function renderResult() {
         const snap = await db.ref(`rooms/${hostId}`).once('value');
         const data = snap.val(); 
