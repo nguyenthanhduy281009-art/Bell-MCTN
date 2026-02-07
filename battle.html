@@ -221,7 +221,7 @@
                 ref.off();
             }
         });
-    }, 3000); // 3000ms là thời gian chờ ổn định kết nối
+    }, 10000); // 3000ms là thời gian chờ ổn định kết nối
 }
     async function renderResult() {
         const snap = await db.ref(`rooms/${hostId}`).once('value');
