@@ -187,28 +187,25 @@
         });
 
         // --- 6. LỜI MỜI & BẠN BÈ ---
-        db.ref('invites/' + user.uid).on('value', snap => {
-            const inviteData = snap.val();
-            if (inviteData) {
-                if (confirm(`Lời mời từ ${inviteData.fromName}. Tham gia?`)) {
-                    db.ref('invites/' + user.uid).remove();
-                    window.location.href = 'room.html?id=' + inviteData.roomId;
-                } else db.ref('invites/' + user.uid).remove();
-            }
-        });
-
         db.ref('friends/' + user.uid).on('value', s => {
             const list = document.getElementById('friend-list');
             if(!list) return;
             list.innerHTML = ''; 
-            Object.entries(s.val() || {}).forEach(([fUid, fInfo]) => {
+            
+            const friendsData = s.val();
+            if (!friendsData) {
+                list.innerHTML = '<div style="text-align:center;font-size:12px;opacity:0.5;margin-top:20px;">Chưa có bạn bè</div>';
+                return;
+            }
+
+            Object.entries(friendsData).forEach(([fUid, fInfo]) => {
+                // Lắng nghe trạng thái online của từng người bạn
                 db.ref('/status/' + fUid).on('value', st => {
-                    const data = st.val() || {};
-                    updateFriendUI(fUid, fInfo, data.state === 'online');
+                    const statusData = st.val() || {};
+                    updateFriendUI(fUid, fInfo, statusData.state === 'online');
                 });
             });
         });
-    });
 
     function setPlayer(index, url) {
         const s = document.getElementById(`s${index}`);
