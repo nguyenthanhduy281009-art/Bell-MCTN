@@ -152,14 +152,15 @@
     }
 
 // --- 5. LOGIC KẾT THÚC ---
-    let isProcessing = false; // Ngăn việc gửi kết quả nhiều lần
+    let sentResult = false;      // client gửi kết quả
+    let hostProcessing = false; // host xét thắng thua
+
 
    async function endGame(title) {
-    if (!isPlaying || isProcessing) return;
-    isProcessing = true;
+    if (!isPlaying || sentResult) return;
+    sentResult = true;
 
     isPlaying = false;
-    paddle.style.background = 'red';
     clearTimeout(spawnTimer);
 
     document.getElementById('msg').style.display = 'block';
@@ -168,16 +169,16 @@
 
     await db.ref(`rooms/${hostId}/players/${auth.currentUser.uid}`).update({
         state: 'dead',
-        survivalTime: seconds,
-        endedAt: firebase.database.ServerValue.TIMESTAMP
+        survivalTime: seconds
     });
 }
+
 
     function hostMonitor() {
     const playersRef = db.ref(`rooms/${hostId}/players`);
 
     playersRef.on('value', snap => {
-    if (!isHost || isProcessing || gameOver) return;
+    if (!isHost || hostProcessing || gameOver) return;
     if (!snap.exists()) return;
 
     const players = snap.val();
@@ -187,7 +188,7 @@
 
     // ✅ TẤT CẢ CHẾT → XỬ LÝ NGAY
     if (alive.length === 0) {
-        isProcessing = true;
+        hostProcessing = true;
         gameOver = true;
         playersRef.off();
 
@@ -207,9 +208,11 @@
            winnerData: {
                name: winner[1].name || 'Unknown',
                prize: 0
-          }
-      });
-
+           }
+       });
+    }
+ });
+}
 
     async function renderResult() {
         const snap = await db.ref(`rooms/${hostId}`).once('value');
