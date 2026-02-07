@@ -114,82 +114,104 @@
         { url: 'https://drive.google.com/thumbnail?id=1KeXUOKM47cK2pO6UNCfvygAOiMARMaH1&sz=w200', chance: 10, weight: 3, type: 'normal' },
         { url: 'https://drive.google.com/thumbnail?id=1IKc60y8Dn1ouIsFFzYw22oIcHM0Oxnjk&sz=w200', chance: 5, weight: 0, type: 'danger' }
     ];
+    let spawnTimer;
+    
+    // --- 4. GAMEPLAY ---
+let spawnTimer; // Biến quản lý vòng lặp sinh vật phẩm
 
-    function createItem() {
-        if (gameOver) return;
-        let rand = Math.random() * 100, cum = 0, sel = itemTypes[0];
-        for (let t of itemTypes) { cum += t.chance; if (rand < cum) { sel = t; break; } }
-        const item = document.createElement('img');
-        item.src = sel.url; item.className = 'falling-item';
-        item.style.left = Math.random() * (370 - 45) + 'px';
-        item.style.top = '-60px';
-        document.getElementById('game-container').appendChild(item);
-        let top = -60, speed = baseSpeed + Math.random() * 2;
-        const fall = setInterval(() => {
-            if (gameOver) { clearInterval(fall); item.remove(); return; }
-            top += speed; item.style.top = top + 'px';
-            const p = paddle.getBoundingClientRect(), i = item.getBoundingClientRect();
-            if (i.bottom >= p.top && i.right >= p.left && i.left <= p.right && i.top <= p.bottom) {
-                clearInterval(fall); item.remove();
-                if (sel.type === 'danger') return endGame("BẠN ĐÃ THUA!");
-                score += sel.weight;
-                document.getElementById('num').innerText = score;
-                document.getElementById('bar').style.width = Math.min((score/currentMax)*100, 100) + '%';
-                if (score >= currentMax) endGame("QUÁ TẢI RỒI!");
-            }
-            if (top > window.innerHeight) { clearInterval(fall); item.remove(); }
-        }, 20);
-    }
-    function spawnLoop() { if (!gameOver) { createItem(); setTimeout(spawnLoop, Math.max(250, 850 - (seconds * 12))); } }
-
-    // --- 5. LOGIC KẾT THÚC ---
-    function endGame(title) {
-        // Chỉ dừng gameplay, không bật gameOver ngay để Host vẫn có thể chạy hostMonitor
-        paddle.style.background = 'red';
-        document.getElementById('msg').style.display = 'block';
-        document.getElementById('msg-title').innerText = title;
-        document.getElementById('winner-info').innerText = "Đang chờ người chơi khác...";
+function createItem() {
+    if (gameOver) return;
+    let rand = Math.random() * 100, cum = 0, sel = itemTypes[0];
+    for (let t of itemTypes) { cum += t.chance; if (rand < cum) { sel = t; break; } }
+    
+    const item = document.createElement('img');
+    item.src = sel.url; item.className = 'falling-item';
+    item.style.left = Math.random() * (370 - 45) + 'px';
+    item.style.top = '-60px';
+    document.getElementById('game-container').appendChild(item);
+    
+    let top = -60, speed = baseSpeed + Math.random() * 2;
+    const fall = setInterval(() => {
+        // Nếu mình đã thua (paddle màu đỏ) hoặc game xong thì xóa item
+        if (gameOver || paddle.style.background === 'red') { 
+            clearInterval(fall); 
+            item.remove(); 
+            return; 
+        }
         
-        // Cập nhật lên server rằng mình đã "ngỏm"
-        db.ref(`rooms/${hostId}/players/${auth.currentUser.uid}`).update({ 
-            state: 'dead', 
-            survivalTime: seconds 
-        });
+        top += speed; item.style.top = top + 'px';
+        const p = paddle.getBoundingClientRect(), i = item.getBoundingClientRect();
+        
+        if (i.bottom >= p.top && i.right >= p.left && i.left <= p.right && i.top <= p.bottom) {
+            clearInterval(fall); item.remove();
+            if (sel.type === 'danger') return endGame("BẠN ĐÃ THUA!");
+            score += sel.weight;
+            document.getElementById('num').innerText = score;
+            document.getElementById('bar').style.width = Math.min((score/currentMax)*100, 100) + '%';
+            if (score >= currentMax) endGame("QUÁ TẢI RỒI!");
+        }
+        if (top > window.innerHeight) { clearInterval(fall); item.remove(); }
+    }, 20);
+}
 
-        // Nếu mình không phải chủ phòng, mình có thể khóa gameOver
-        if (!isHost) gameOver = true;
+function spawnLoop() { 
+    if (gameOver || paddle.style.background === 'red') return; 
+    createItem(); 
+    spawnTimer = setTimeout(spawnLoop, Math.max(250, 850 - (seconds * 12))); 
+}
+
+// --- 5. LOGIC KẾT THÚC ---
+function endGame(title) {
+    // 1. Dừng hiển thị và thao tác của người chơi này
+    paddle.style.background = 'red';
+    clearTimeout(spawnTimer); // Dừng sinh thêm vật phẩm
+    document.getElementById('msg').style.display = 'block';
+    document.getElementById('msg-title').innerText = title;
+    
+    // 2. Cập nhật dữ liệu lên Firebase
+    db.ref(`rooms/${hostId}/players/${auth.currentUser.uid}`).update({ 
+        state: 'dead', 
+        survivalTime: seconds 
+    });
+
+    // 3. Nếu là người chơi thường thì khóa game luôn
+    if (!isHost) {
+        gameOver = true;
     }
+}
 
-    // Host sẽ canh chừng khi nào tất cả người chơi chết hết
-    function hostMonitor() {
-        db.ref(`rooms/${hostId}/players`).on('value', async snap => {
-            const players = snap.val();
-            if (!players || !isHost || gameOver) return;
+function hostMonitor() {
+    db.ref(`rooms/${hostId}/players`).on('value', async snap => {
+        const players = snap.val();
+        // Host chỉ thực hiện tính toán khi game chưa có winnerData
+        if (!players || !isHost || gameOver) return;
 
-            const entries = Object.entries(players);
-            const alive = entries.filter(p => p[1].state === 'alive');
+        const entries = Object.entries(players);
+        const alive = entries.filter(p => p[1].state === 'alive');
 
-            // Khi không còn ai sống
-            if (alive.length === 0 && entries.length > 0) {
-                const roomSnap = await db.ref(`rooms/${hostId}`).once('value');
-                const roomData = roomSnap.val();
-                if (roomData.status === 'finished') return;
+        // Khi tất cả đã chết
+        if (alive.length === 0 && entries.length > 0) {
+            const roomSnap = await db.ref(`rooms/${hostId}`).once('value');
+            const roomData = roomSnap.val();
+            if (roomData.status === 'finished') return;
 
-                // Xác định người thắng (survivalTime cao nhất)
-                const sorted = entries.sort((a, b) => (b[1].survivalTime || 0) - (a[1].survivalTime || 0));
-                const winner = sorted[0];
-                const totalPrize = roomData.totalPrize || 0;
+            // Tìm người thắng
+            const sorted = entries.sort((a, b) => (b[1].survivalTime || 0) - (a[1].survivalTime || 0));
+            const winner = sorted[0];
+            const totalPrize = roomData.totalPrize || 0;
 
-                // Cập nhật kết quả cuối cùng
-                gameOver = true;
-                db.ref().update({
-                    [`users/${winner[0]}/coins`]: firebase.database.ServerValue.increment(totalPrize),
-                    [`rooms/${hostId}/status`]: 'finished',
-                    [`rooms/${hostId}/winnerData`]: { name: winner[1].name, prize: totalPrize }
-                });
-            }
-        });
-    }
+            gameOver = true; // Host xác nhận game xong
+            
+            // Cập nhật kết quả cuối cùng lên Firebase
+            const finalUpdates = {};
+            finalUpdates[`users/${winner[0]}/coins`] = firebase.database.ServerValue.increment(totalPrize);
+            finalUpdates[`rooms/${hostId}/status`] = 'finished';
+            finalUpdates[`rooms/${hostId}/winnerData`] = { name: winner[1].name, prize: totalPrize };
+            
+            db.ref().update(finalUpdates);
+        }
+    });
+}
 
     async function renderResult() {
         gameOver = true;
