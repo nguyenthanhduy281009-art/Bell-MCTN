@@ -86,8 +86,16 @@
         isHost = (user.uid === hostId);
         
         db.ref(`rooms/${hostId}/players/${user.uid}`).update({ state: 'alive', survivalTime: 0 });
+        // --- 3. LOGIC KẾT NỐI ---
         db.ref(`rooms/${hostId}/status`).on('value', snap => {
-            if (snap.val() === 'finished' && !gameOver) {
+            const status = snap.val();
+            if (status === 'finished' && !gameOver) {
+                // Nếu trận đấu kết thúc mà mình vẫn đang chơi (mình thắng)
+                // thì phải tự dừng game lại ngay
+                if (isPlaying) {
+                    isPlaying = false;
+                    clearTimeout(spawnTimer);
+                }
                 gameOver = true;
                 renderResult();
             }
