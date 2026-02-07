@@ -61,7 +61,7 @@
     // --- 2. KHỞI TẠO BIẾN ---
     const urlParams = new URLSearchParams(window.location.search);
     const hostId = urlParams.get('id');
-    let isHost = false, gameOver = false, score = 0, seconds = 0, baseSpeed = 5;
+    let isHost = false, gameOver = false, score = 0, seconds = 0, baseSpeed = 5, spawnTimer;
 
     const currentMax = parseInt(localStorage.getItem('paddleCapacity')) || 100;
     const currentColor = localStorage.getItem('paddleColor') || 'rgba(255, 255, 255, 0.4)';
@@ -73,26 +73,28 @@
     document.getElementById('max-num').innerText = currentMax;
     document.getElementById('back-btn').onclick = () => { location.href = 'room.html?id=' + hostId; };
 
+    const itemTypes = [
+        { url: 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w200', chance: 60, weight: 1, type: 'normal' },
+        { url: 'https://drive.google.com/thumbnail?id=17JZiAW3NHJvEg2iN679TdNB_DVlKN7xz&sz=w200', chance: 25, weight: 2, type: 'normal' },
+        { url: 'https://drive.google.com/thumbnail?id=1KeXUOKM47cK2pO6UNCfvygAOiMARMaH1&sz=w200', chance: 10, weight: 3, type: 'normal' },
+        { url: 'https://drive.google.com/thumbnail?id=1IKc60y8Dn1ouIsFFzYw22oIcHM0Oxnjk&sz=w200', chance: 5, weight: 0, type: 'danger' }
+    ];
+
     // --- 3. LOGIC KẾT NỐI ---
     auth.onAuthStateChanged(user => {
         if (!user || !hostId) return window.location.href = "auth.html";
         isHost = (user.uid === hostId);
-        
-        // Đặt trạng thái ban đầu
         db.ref(`rooms/${hostId}/players/${user.uid}`).update({ state: 'alive', survivalTime: 0 });
-
-        // Lắng nghe xem trận đấu đã xong chưa
         db.ref(`rooms/${hostId}/status`).on('value', snap => {
             if (snap.val() === 'finished') renderResult();
         });
-
         if (isHost) hostMonitor();
         spawnLoop();
     });
 
     // --- 4. GAMEPLAY ---
     function movePaddle(x) {
-        if (gameOver) return;
+        if (gameOver || paddle.style.background === 'red') return;
         let rect = document.getElementById('game-container').getBoundingClientRect();
         let safeX = Math.max(paddle.offsetWidth/2, Math.min(x - rect.left, rect.width - paddle.offsetWidth/2));
         paddle.style.left = safeX + 'px';
@@ -101,130 +103,101 @@
     window.addEventListener('touchmove', (e) => { e.preventDefault(); movePaddle(e.touches[0].clientX); }, { passive: false });
 
     setInterval(() => {
-        if (!gameOver) {
+        if (!gameOver && paddle.style.background !== 'red') {
             seconds++;
             document.getElementById('timer').innerText = seconds;
             if (seconds % 7 === 0) baseSpeed += 0.8; 
         }
     }, 1000);
 
-    const itemTypes = [
-        { url: 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w200', chance: 60, weight: 1, type: 'normal' },
-        { url: 'https://drive.google.com/thumbnail?id=17JZiAW3NHJvEg2iN679TdNB_DVlKN7xz&sz=w200', chance: 25, weight: 2, type: 'normal' },
-        { url: 'https://drive.google.com/thumbnail?id=1KeXUOKM47cK2pO6UNCfvygAOiMARMaH1&sz=w200', chance: 10, weight: 3, type: 'normal' },
-        { url: 'https://drive.google.com/thumbnail?id=1IKc60y8Dn1ouIsFFzYw22oIcHM0Oxnjk&sz=w200', chance: 5, weight: 0, type: 'danger' }
-    ];
-    let spawnTimer;
-    
-    // --- 4. GAMEPLAY ---
-let spawnTimer; // Biến quản lý vòng lặp sinh vật phẩm
-
-function createItem() {
-    if (gameOver) return;
-    let rand = Math.random() * 100, cum = 0, sel = itemTypes[0];
-    for (let t of itemTypes) { cum += t.chance; if (rand < cum) { sel = t; break; } }
-    
-    const item = document.createElement('img');
-    item.src = sel.url; item.className = 'falling-item';
-    item.style.left = Math.random() * (370 - 45) + 'px';
-    item.style.top = '-60px';
-    document.getElementById('game-container').appendChild(item);
-    
-    let top = -60, speed = baseSpeed + Math.random() * 2;
-    const fall = setInterval(() => {
-        // Nếu mình đã thua (paddle màu đỏ) hoặc game xong thì xóa item
-        if (gameOver || paddle.style.background === 'red') { 
-            clearInterval(fall); 
-            item.remove(); 
-            return; 
-        }
+    function createItem() {
+        if (gameOver || paddle.style.background === 'red') return;
+        let rand = Math.random() * 100, cum = 0, sel = itemTypes[0];
+        for (let t of itemTypes) { cum += t.chance; if (rand < cum) { sel = t; break; } }
         
-        top += speed; item.style.top = top + 'px';
-        const p = paddle.getBoundingClientRect(), i = item.getBoundingClientRect();
+        const item = document.createElement('img');
+        item.src = sel.url; item.className = 'falling-item';
+        item.style.left = Math.random() * (370 - 45) + 'px';
+        item.style.top = '-60px';
+        document.getElementById('game-container').appendChild(item);
         
-        if (i.bottom >= p.top && i.right >= p.left && i.left <= p.right && i.top <= p.bottom) {
-            clearInterval(fall); item.remove();
-            if (sel.type === 'danger') return endGame("BẠN ĐÃ THUA!");
-            score += sel.weight;
-            document.getElementById('num').innerText = score;
-            document.getElementById('bar').style.width = Math.min((score/currentMax)*100, 100) + '%';
-            if (score >= currentMax) endGame("QUÁ TẢI RỒI!");
-        }
-        if (top > window.innerHeight) { clearInterval(fall); item.remove(); }
-    }, 20);
-}
-
-function spawnLoop() { 
-    if (gameOver || paddle.style.background === 'red') return; 
-    createItem(); 
-    spawnTimer = setTimeout(spawnLoop, Math.max(250, 850 - (seconds * 12))); 
-}
-
-// --- 5. LOGIC KẾT THÚC ---
-function endGame(title) {
-    // 1. Dừng hiển thị và thao tác của người chơi này
-    paddle.style.background = 'red';
-    clearTimeout(spawnTimer); // Dừng sinh thêm vật phẩm
-    document.getElementById('msg').style.display = 'block';
-    document.getElementById('msg-title').innerText = title;
-    
-    // 2. Cập nhật dữ liệu lên Firebase
-    db.ref(`rooms/${hostId}/players/${auth.currentUser.uid}`).update({ 
-        state: 'dead', 
-        survivalTime: seconds 
-    });
-
-    // 3. Nếu là người chơi thường thì khóa game luôn
-    if (!isHost) {
-        gameOver = true;
+        let top = -60, speed = baseSpeed + Math.random() * 2;
+        const fall = setInterval(() => {
+            if (gameOver || paddle.style.background === 'red') { 
+                clearInterval(fall); item.remove(); return; 
+            }
+            top += speed; item.style.top = top + 'px';
+            const p = paddle.getBoundingClientRect(), i = item.getBoundingClientRect();
+            
+            if (i.bottom >= p.top && i.right >= p.left && i.left <= p.right && i.top <= p.bottom) {
+                clearInterval(fall); item.remove();
+                if (sel.type === 'danger') return endGame("BẠN ĐÃ THUA!");
+                score += sel.weight;
+                document.getElementById('num').innerText = score;
+                document.getElementById('bar').style.width = Math.min((score/currentMax)*100, 100) + '%';
+                if (score >= currentMax) endGame("QUÁ TẢI RỒI!");
+            }
+            if (top > window.innerHeight) { clearInterval(fall); item.remove(); }
+        }, 20);
     }
-}
 
-function hostMonitor() {
-    db.ref(`rooms/${hostId}/players`).on('value', async snap => {
-        const players = snap.val();
-        // Host chỉ thực hiện tính toán khi game chưa có winnerData
-        if (!players || !isHost || gameOver) return;
+    function spawnLoop() { 
+        if (gameOver || paddle.style.background === 'red') return; 
+        createItem(); 
+        spawnTimer = setTimeout(spawnLoop, Math.max(250, 850 - (seconds * 12))); 
+    }
 
-        const entries = Object.entries(players);
-        const alive = entries.filter(p => p[1].state === 'alive');
+    // --- 5. LOGIC KẾT THÚC ---
+    function endGame(title) {
+        paddle.style.background = 'red';
+        clearTimeout(spawnTimer);
+        document.getElementById('msg').style.display = 'block';
+        document.getElementById('msg-title').innerText = title;
+        document.getElementById('winner-info').innerText = "Đang chờ người chơi khác...";
+        
+        db.ref(`rooms/${hostId}/players/${auth.currentUser.uid}`).update({ 
+            state: 'dead', 
+            survivalTime: seconds 
+        });
+        if (!isHost) gameOver = true;
+    }
 
-        // Khi tất cả đã chết
-        if (alive.length === 0 && entries.length > 0) {
-            const roomSnap = await db.ref(`rooms/${hostId}`).once('value');
-            const roomData = roomSnap.val();
-            if (roomData.status === 'finished') return;
+    function hostMonitor() {
+        db.ref(`rooms/${hostId}/players`).on('value', async snap => {
+            const players = snap.val();
+            if (!players || !isHost || gameOver) return;
+            const entries = Object.entries(players);
+            const alive = entries.filter(p => p[1].state === 'alive');
 
-            // Tìm người thắng
-            const sorted = entries.sort((a, b) => (b[1].survivalTime || 0) - (a[1].survivalTime || 0));
-            const winner = sorted[0];
-            const totalPrize = roomData.totalPrize || 0;
+            if (alive.length === 0 && entries.length > 0) {
+                const roomSnap = await db.ref(`rooms/${hostId}`).once('value');
+                const roomData = roomSnap.val();
+                if (roomData.status === 'finished') return;
 
-            gameOver = true; // Host xác nhận game xong
-            
-            // Cập nhật kết quả cuối cùng lên Firebase
-            const finalUpdates = {};
-            finalUpdates[`users/${winner[0]}/coins`] = firebase.database.ServerValue.increment(totalPrize);
-            finalUpdates[`rooms/${hostId}/status`] = 'finished';
-            finalUpdates[`rooms/${hostId}/winnerData`] = { name: winner[1].name, prize: totalPrize };
-            
-            db.ref().update(finalUpdates);
-        }
-    });
-}
+                const sorted = entries.sort((a, b) => (b[1].survivalTime || 0) - (a[1].survivalTime || 0));
+                const winner = sorted[0];
+                const totalPrize = roomData.totalPrize || 0;
+
+                gameOver = true;
+                db.ref().update({
+                    [`users/${winner[0]}/coins`]: firebase.database.ServerValue.increment(totalPrize),
+                    [`rooms/${hostId}/status`]: 'finished',
+                    [`rooms/${hostId}/winnerData`]: { name: winner[1].name, prize: totalPrize }
+                });
+            }
+        });
+    }
 
     async function renderResult() {
         gameOver = true;
         const snap = await db.ref(`rooms/${hostId}`).once('value');
         const data = snap.val(); if (!data) return;
-        
         const winner = data.winnerData || { name: "N/A", prize: 0 };
         document.getElementById('msg-title').innerText = "KẾT THÚC TRẬN";
         document.getElementById('winner-info').innerHTML = `
             <div style="font-size:20px; color:#2ecc71; margin-bottom:10px;">🏆 ${winner.name} THẮNG</div>
             <div style="font-size:24px;">+${winner.prize} <img src="https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100" class="coin-icon"></div>
         `;
-
         let listHtml = "";
         Object.values(data.players).sort((a,b) => b.survivalTime - a.survivalTime).forEach(p => {
             listHtml += `<div class="stat-row"><span>${p.name}</span><span>${p.survivalTime}s</span></div>`;
