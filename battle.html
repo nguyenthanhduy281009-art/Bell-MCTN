@@ -151,7 +151,9 @@
         spawnTimer = setTimeout(spawnLoop, Math.max(250, 850 - (seconds * 12))); 
     }
 
-    // --- 5. LOGIC KẾT THÚC ---
+// --- 5. LOGIC KẾT THÚC ---
+    let isProcessing = false; // Ngăn việc gửi kết quả nhiều lần
+
     function endGame(title) {
         if (!isPlaying) return;
         isPlaying = false;
@@ -165,34 +167,45 @@
             state: 'dead', 
             survivalTime: seconds 
         });
+        // Không đặt gameOver = true ở đây để Host vẫn chạy được hostMonitor
     }
 
     function hostMonitor() {
         db.ref(`rooms/${hostId}/players`).on('value', async snap => {
             const players = snap.val();
-            if (!players || !isHost || gameOver) return;
+            if (!players || !isHost || isProcessing || gameOver) return;
 
             const entries = Object.entries(players);
             const alive = entries.filter(p => p[1].state === 'alive');
 
+            // Khi không còn ai sống (alive.length === 0)
             if (alive.length === 0 && entries.length > 0) {
-                const roomSnap = await db.ref(`rooms/${hostId}`).once('value');
-                const roomData = roomSnap.val();
-                if (roomData.status === 'finished') return;
+                isProcessing = true; // Khóa ngay lập tức để tránh trùng lặp
 
-                const sorted = entries.sort((a, b) => (b[1].survivalTime || 0) - (a[1].survivalTime || 0));
-                const winner = sorted[0];
-                const totalPrize = roomData.totalPrize || 0;
+                // Đợi 1 giây để đảm bảo mọi máy đã kịp ghi survivalTime lên server
+                setTimeout(async () => {
+                    const roomSnap = await db.ref(`rooms/${hostId}`).once('value');
+                    const roomData = roomSnap.val();
+                    
+                    if (roomData.status === 'finished') return;
 
-                db.ref().update({
-                    [`users/${winner[0]}/coins`]: firebase.database.ServerValue.increment(totalPrize),
-                    [`rooms/${hostId}/status`]: 'finished',
-                    [`rooms/${hostId}/winnerData`]: { name: winner[1].name, prize: totalPrize }
-                });
+                    // Lấy lại danh sách players mới nhất sau 1s đợi
+                    const finalPlayers = Object.entries(roomData.players);
+                    const sorted = finalPlayers.sort((a, b) => (b[1].survivalTime || 0) - (a[1].survivalTime || 0));
+                    const winner = sorted[0];
+                    const totalPrize = roomData.totalPrize || 0;
+
+                    // Gửi lệnh tổng kết lên server
+                    const updates = {};
+                    updates[`users/${winner[0]}/coins`] = firebase.database.ServerValue.increment(totalPrize);
+                    updates[`rooms/${hostId}/status`] = 'finished';
+                    updates[`rooms/${hostId}/winnerData`] = { name: winner[1].name, prize: totalPrize };
+                    
+                    db.ref().update(updates);
+                }, 1000);
             }
         });
     }
-
     async function renderResult() {
         const snap = await db.ref(`rooms/${hostId}`).once('value');
         const data = snap.val(); 
