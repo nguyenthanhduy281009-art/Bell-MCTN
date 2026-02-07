@@ -11,7 +11,17 @@
         :root { --glow: transparent; }
         .coin-icon { width: 20px; height: 20px; vertical-align: middle; margin-left: 5px; border-radius: 50%; }
         body { margin: 0; overflow: hidden; background: #000; color: white; font-family: sans-serif; touch-action: none; display: flex; justify-content: center; user-select: none; -webkit-user-select: none; }
-        #game-container { position: relative; width: 380px; height: 100vh; max-width: 500px; background: radial-gradient(circle, #1a1a2e, #000); overflow: hidden; border-left: 1px solid #333; border-right: 1px solid #333; }
+        #game-container { 
+    position: relative; 
+    width: 100vw; /* Ưu tiên 100% chiều rộng trên điện thoại */
+    max-width: 450px; /* KHÔNG CHO QUÁ TO TRÊN MÁY TÍNH (Duy có thể chỉnh số này) */
+    height: 100vh; 
+    background: radial-gradient(circle, #1a1a2e, #000); 
+    overflow: hidden; 
+    border-left: 1px solid #333; 
+    border-right: 1px solid #333; 
+    margin: 0 auto; /* Căn giữa khung chơi khi dùng máy tính */
+}
         #paddle { position: absolute; bottom: 120px; left: 50%; height: 18px; border-radius: 10px; transform: translateX(-50%); z-index: 100; transition: background 0.3s, width 0.3s, box-shadow 0.3s; }
         .ui { position: fixed; top: 20px; width: 100%; max-width: 500px; text-align: center; pointer-events: none; z-index: 200; }
         .red { color: #ff4d4d; font-weight: bold; font-size: 26px; }
@@ -34,13 +44,17 @@
         <div class="progress-bg"><div id="bar"></div></div>
     </div>
     <div id="paddle"></div>
-    <div id="msg">
-        <h1 id="msg-title" style="color:#ffeb3b; margin-top:0;">ĐANG ĐẤU...</h1>
-        <div id="winner-info"></div>
-        <div id="stats-list"></div>
-        <div class="btn-group" id="end-actions" style="display:none;">
-            <button class="btn-home" id="back-btn">QUAY LẠI PHÒNG</button>
+   <div id="msg" style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.9); padding: 20px; border-radius: 15px; width: 85%; max-width: 320px; text-align: center; z-index: 1000; border: 2px solid #f1c40f;">
+    <h1 id="msg-title" style="margin: 0; color: #f1c40f; font-size: 28px;">KẾT THÚC</h1>
+    
+    <div id="winner-info" style="margin: 15px 0; border-bottom: 1px solid #444; padding-bottom: 10px;"></div>
+    
+    <div style="font-size: 14px; color: #aaa; margin-bottom: 5px; text-align: left;">Chi tiết trận đấu:</div>
+    <div id="stats-list" style="max-height: 150px; overflow-y: auto; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 10px; margin-bottom: 15px;">
         </div>
+
+    <div id="end-actions" style="display:none;">
+        <button onclick="goBack()" style="background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;">QUAY LẠI PHÒNG</button>
     </div>
 </div>
 
@@ -67,32 +81,19 @@
     const currentColor = localStorage.getItem('paddleColor') || 'rgba(255, 255, 255, 0.4)';
     const currentWidth = localStorage.getItem('paddleWidth') || '130px';
     const paddle = document.getElementById('paddle');
-    // --- KHÓA ZOOM MÀN HÌNH ---
-// Chặn zoom 2 ngón tay và Double tap
-document.addEventListener('touchstart', (e) => {
-    if (e.touches.length > 1) e.preventDefault();
-}, { passive: false });
 
-let lastTouchEnd = 0;
-document.addEventListener('touchend', (e) => {
-    const now = Date.now();
-    if (now - lastTouchEnd <= 300) e.preventDefault();
-    lastTouchEnd = now;
-}, false);
-
-// Chặn cuộn chuột/zoom bằng phím tắt trên máy tính
-document.addEventListener('wheel', (e) => {
-    if (e.ctrlKey) e.preventDefault();
-}, { passive: false });
-
-document.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && ['+', '-', '=', '0'].includes(e.key)) e.preventDefault();
-});
+    // Chặn Zoom
+    document.addEventListener('touchstart', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (e) => {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) e.preventDefault();
+        lastTouchEnd = now;
+    }, false);
 
     paddle.style.background = currentColor;
     paddle.style.width = currentWidth.includes('px') ? currentWidth : currentWidth + 'px';
     document.getElementById('max-num').innerText = currentMax;
-    document.getElementById('back-btn').onclick = () => { location.href = 'room.html?id=' + hostId; };
 
     const itemTypes = [
         { url: 'https://drive.google.com/thumbnail?id=1SGW0oc5yuw1WmArQ9GbNSQYBPbmXRWdi&sz=w200', chance: 60, weight: 1, type: 'normal' },
@@ -102,37 +103,34 @@ document.addEventListener('keydown', (e) => {
     ];
 
     // --- 3. LOGIC KẾT NỐI ---
-   auth.onAuthStateChanged(async user => {
-    if (!user || !hostId) return window.location.href = "auth.html";
-    isHost = (user.uid === hostId);
-    
-    // Nếu là Host, reset trạng thái phòng về mặc định
-    if (isHost) {
-        await db.ref(`rooms/${hostId}`).update({
-            status: 'playing', // Đảm bảo status không phải 'finished'
-            winnerData: null
-        });
-    }
-
-    // Cập nhật bản thân là 'alive'
-    db.ref(`rooms/${hostId}/players/${user.uid}`).update({ 
-        state: 'alive', 
-        survivalTime: 0,
-        name: localStorage.getItem('playerName') || 'Người chơi'
-    });
-
-    // Lắng nghe lệnh kết thúc
-    db.ref(`rooms/${hostId}/status`).on('value', snap => {
-        if (snap.val() === 'finished') {
-            isPlaying = false;
-            clearTimeout(spawnTimer);
-            renderResult();
+    auth.onAuthStateChanged(async user => {
+        if (!user || !hostId) return window.location.href = "auth.html";
+        isHost = (user.uid === hostId);
+        
+        if (isHost) {
+            await db.ref(`rooms/${hostId}`).update({ status: 'playing', winnerData: null });
         }
+
+        // Cập nhật bản thân
+        db.ref(`rooms/${hostId}/players/${user.uid}`).update({ 
+            state: 'alive', 
+            survivalTime: 0,
+            name: localStorage.getItem('playerName') || 'Người chơi'
+        });
+
+        // Lắng nghe lệnh kết thúc
+        db.ref(`rooms/${hostId}/status`).on('value', snap => {
+            if (snap.val() === 'finished') {
+                isPlaying = false;
+                clearTimeout(spawnTimer);
+                renderResult();
+            }
+        });
+
+        if (isHost) hostMonitor();
+        spawnLoop();
     });
 
-    if (isHost) hostMonitor();
-    spawnLoop();
-});
     // --- 4. GAMEPLAY ---
     function movePaddle(x) {
         if (!isPlaying) return;
@@ -148,8 +146,6 @@ document.addEventListener('keydown', (e) => {
             seconds++;
             document.getElementById('timer').innerText = seconds;
             if (seconds % 7 === 0) baseSpeed += 0.8; 
-            
-            // THÊM DÒNG NÀY: Cập nhật mỗi giây để Host biết ai sống lâu hơn
             db.ref(`rooms/${hostId}/players/${auth.currentUser.uid}/survivalTime`).set(seconds);
         }
     }, 1000);
@@ -161,7 +157,8 @@ document.addEventListener('keydown', (e) => {
         
         const item = document.createElement('img');
         item.src = sel.url; item.className = 'falling-item';
-        item.style.left = Math.random() * (370 - 45) + 'px';
+        const containerWidth = document.getElementById('game-container').offsetWidth;
+        item.style.left = Math.random() * (containerWidth - 45) + 'px';
         item.style.top = '-60px';
         document.getElementById('game-container').appendChild(item);
         
@@ -189,103 +186,98 @@ document.addEventListener('keydown', (e) => {
         spawnTimer = setTimeout(spawnLoop, Math.max(250, 850 - (seconds * 12))); 
     }
 
-// --- 5. LOGIC KẾT THÚC ---
-    let sentResult = false;      // client gửi kết quả
-    let hostProcessing = false; // host xét thắng thua
+    // --- 5. LOGIC KẾT THÚC ---
+    async function endGame(title) {
+        if (!isPlaying) return;
+        isPlaying = false;
+        clearTimeout(spawnTimer);
+        document.getElementById('msg').style.display = 'block';
+        document.getElementById('msg-title').innerText = title;
+        document.getElementById('winner-info').innerText = "Vui lòng đợi kết quả...";
 
+        await db.ref(`rooms/${hostId}/players/${auth.currentUser.uid}`).update({
+            state: 'dead',
+            survivalTime: seconds
+        });
+    }
 
-  async function endGame(title) {
-    if (!isPlaying) return;
-    isPlaying = false;
-    clearTimeout(spawnTimer);
-
-    // Hiện thông báo riêng cho người đó biết là họ đã thua
-    document.getElementById('msg').style.display = 'block';
-    document.getElementById('msg-title').innerText = title;
-    document.getElementById('winner-info').innerText = "Vui lòng đợi những người khác...";
-
-    // Báo tử nhưng không dừng trận đấu của người khác
-    await db.ref(`rooms/${hostId}/players/${auth.currentUser.uid}`).update({
-        state: 'dead',
-        survivalTime: seconds
-    });
-}
-
-
-   function hostMonitor() {
-    const ref = db.ref(`rooms/${hostId}/players`);
-    setTimeout(() => {
+    function hostMonitor() {
+        if (!isHost) return;
+        const ref = db.ref(`rooms/${hostId}/players`);
         ref.on('value', async snap => {
             if (!isHost || gameOver) return;
             const players = snap.val();
             if (!players) return;
-
             const entries = Object.entries(players);
             const alive = entries.filter(([_, p]) => p.state === 'alive');
 
-            // CHỈ KẾT THÚC KHI TẤT CẢ ĐÃ CHẾT (alive.length === 0)
             if (entries.length >= 1 && alive.length === 0) {
                 gameOver = true;
-                
-                // Sắp xếp xem ai có survivalTime cao nhất để trao giải
                 entries.sort((a, b) => (b[1].survivalTime || 0) - (a[1].survivalTime || 0));
                 const winner = entries[0];
-                
                 const roomSnap = await db.ref(`rooms/${hostId}`).once('value');
                 const prize = roomSnap.val()?.totalPrize || 0;
 
+                if (prize > 0) {
+                    db.ref(`users/${winner[0]}/coins`).transaction(c => (c || 0) + prize);
+                }
+
                 await db.ref(`rooms/${hostId}`).update({
                     status: 'finished',
-                    winnerData: { name: winner[1].name, prize: prize }
+                    winnerData: { uid: winner[0], name: winner[1].name, prize: prize }
                 });
                 ref.off();
             }
         });
-    }, 3000); 
-}
-    // Tìm hàm renderResult() cũ của Duy và dán đè toàn bộ đoạn này vào:
+    }
+
     async function renderResult() {
         const snap = await db.ref(`rooms/${hostId}`).once('value');
         const data = snap.val(); 
         if (!data || !data.winnerData) return;
 
         const winner = data.winnerData;
-        document.getElementById('msg-title').innerText = "KẾT THÚC TRẬN";
+        const isMeWinner = (auth.currentUser.uid === winner.uid);
+
+        document.getElementById('msg').style.display = 'block';
+        document.getElementById('msg-title').innerText = isMeWinner ? "🏆 CHIẾN THẮNG!" : "KẾT THÚC";
+        document.getElementById('msg-title').style.color = isMeWinner ? "#f1c40f" : "#fff";
+
         document.getElementById('winner-info').innerHTML = `
-            <div style="font-size:20px; color:#2ecc71; margin-bottom:10px;">🏆 ${winner.name} THẮNG</div>
-            <div style="font-size:24px;">+${winner.prize} <img src="https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100" class="coin-icon"></div>
+            <div style="font-size:18px; color:#fff;">${winner.name} THẮNG</div>
+            <div style="font-size:24px; color:#2ecc71; font-weight:bold;">+${winner.prize} 
+                <img src="https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100" class="coin-icon">
+            </div>
         `;
-        
+
         let listHtml = "";
         const playersArr = Object.values(data.players).sort((a,b) => (b.survivalTime || 0) - (a.survivalTime || 0));
-        
-        playersArr.forEach(p => {
-            listHtml += `<div class="stat-row"><span>${p.name}</span><span>${p.survivalTime || 0}s</span></div>`;
+        playersArr.forEach((p, idx) => {
+            const isWinnerRow = (p.name === winner.name);
+            listHtml += `
+                <div class="stat-row" style="color:${isWinnerRow ? '#f1c40f' : '#fff'}; font-weight:${isWinnerRow ? 'bold' : 'normal'}">
+                    <span>${idx + 1}. ${p.name}</span>
+                    <span>${p.survivalTime || 0}s</span>
+                </div>`;
         });
         document.getElementById('stats-list').innerHTML = listHtml;
         document.getElementById('end-actions').style.display = 'block';
-        document.getElementById('msg').style.display = 'block';
+    }
 
-        // --- ĐÂY LÀ PHẦN GHI KỶ LỤC (CỦA RIÊNG BẠN) ---
-        const myId = auth.currentUser.uid;
-        const myScore = data.players[myId]?.survivalTime || 0;
-        const myName = localStorage.getItem('playerName') || 'Người chơi';
-
-        if (myScore > 0) {
-            const lbRef = db.ref(`leaderboard/${myId}`);
-            const lbSnap = await lbRef.once('value');
-            const oldData = lbSnap.val();
-
-            // Nếu chưa có kỷ lục hoặc điểm trận này cao hơn kỷ lục cũ thì mới lưu
-            if (!oldData || myScore > oldData.score) {
-                await lbRef.set({
-                    name: myName,
-                    score: myScore,
-                    timestamp: firebase.database.ServerValue.TIMESTAMP
+    async function goBack() {
+        if (isHost) {
+            await db.ref(`rooms/${hostId}`).update({ status: 'waiting', winnerData: null });
+            const snap = await db.ref(`rooms/${hostId}/players`).once('value');
+            if (snap.exists()) {
+                const updates = {};
+                Object.keys(snap.val()).forEach(uid => {
+                    updates[`rooms/${hostId}/players/${uid}/state`] = 'waiting';
+                    updates[`rooms/${hostId}/players/${uid}/survivalTime`] = 0;
                 });
-                console.log("Đã cập nhật kỷ lục mới: " + myScore + "s");
+                await db.ref().update(updates);
             }
         }
+        location.href = 'room.html?id=' + hostId;
     }
 </script>
 </body>
