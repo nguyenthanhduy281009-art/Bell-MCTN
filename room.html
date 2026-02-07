@@ -265,6 +265,27 @@
     function quitRoom() {
         location.href = 'friends.html';
     }
+    // Tìm hàm xử lý nút Bắt đầu trong room.html
+function startGame() {
+    const roomId = new URLSearchParams(window.location.search).get('id');
+    
+    // 1. Lấy mức cược của phòng và số lượng người chơi
+    db.ref(`rooms/${roomId}`).once('value', snap => {
+        const roomData = snap.val();
+        const players = roomData.players;
+        const playerIds = Object.keys(players);
+        const bet = roomData.bet || 0;
+        const totalPrize = bet * playerIds.length; // Tổng giải thưởng
+
+        // 2. Cập nhật status và totalPrize lên Firebase
+        db.ref(`rooms/${roomId}`).update({
+            status: 'playing',
+            totalPrize: totalPrize
+        }).then(() => {
+            console.log("Trận đấu bắt đầu, tổng giải thưởng:", totalPrize);
+        });
+    });
+}
 </script>
 </body>
 </html>
