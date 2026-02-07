@@ -188,18 +188,20 @@
 
     // --- 5. LOGIC KẾT THÚC ---
     async function endGame(title) {
-        if (!isPlaying) return;
-        isPlaying = false;
-        clearTimeout(spawnTimer);
-        document.getElementById('msg').style.display = 'block';
-        document.getElementById('msg-title').innerText = title;
-        document.getElementById('winner-info').innerText = "Vui lòng đợi kết quả...";
+    if (!isPlaying) return;
+    isPlaying = false;
+    clearTimeout(spawnTimer);
+    
+    document.getElementById('msg').style.display = 'block';
+    document.getElementById('msg-title').innerText = title;
 
-        await db.ref(`rooms/${hostId}/players/${auth.currentUser.uid}`).update({
-            state: 'dead',
-            survivalTime: seconds
-        });
-    }
+    // PHẢI CẬP NHẬT CẢ TÊN Ở ĐÂY
+    await db.ref(`rooms/${hostId}/players/${auth.currentUser.uid}`).update({
+        state: 'dead',
+        survivalTime: seconds,
+        name: localStorage.getItem('playerName') || 'Người chơi'
+    });
+}
 
     function hostMonitor() {
         if (!isHost) return;
@@ -232,37 +234,43 @@
     }
 
     async function renderResult() {
-        const snap = await db.ref(`rooms/${hostId}`).once('value');
-        const data = snap.val(); 
-        if (!data || !data.winnerData) return;
+    const snap = await db.ref(`rooms/${hostId}`).once('value');
+    const data = snap.val(); 
+    if (!data || !data.winnerData) return;
 
-        const winner = data.winnerData;
-        const isMeWinner = (auth.currentUser.uid === winner.uid);
+    const winner = data.winnerData;
+    // SO SÁNH BẰNG UID (Chính xác 100%)
+    const isMeWinner = (auth.currentUser.uid === winner.uid);
 
-        document.getElementById('msg').style.display = 'block';
-        document.getElementById('msg-title').innerText = isMeWinner ? "🏆 CHIẾN THẮNG!" : "KẾT THÚC";
-        document.getElementById('msg-title').style.color = isMeWinner ? "#f1c40f" : "#fff";
+    document.getElementById('msg').style.display = 'block';
+    const titleEl = document.getElementById('msg-title');
+    titleEl.innerText = isMeWinner ? "🏆 CHIẾN THẮNG!" : "KẾT THÚC";
+    titleEl.style.color = isMeWinner ? "#f1c40f" : "#fff";
 
-        document.getElementById('winner-info').innerHTML = `
-            <div style="font-size:18px; color:#fff;">${winner.name} THẮNG</div>
-            <div style="font-size:24px; color:#2ecc71; font-weight:bold;">+${winner.prize} 
-                <img src="https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100" class="coin-icon">
-            </div>
-        `;
+    document.getElementById('winner-info').innerHTML = `
+        <div style="font-size:18px; color:#fff;">${winner.name} THẮNG</div>
+        <div style="font-size:24px; color:#2ecc71; font-weight:bold;">+${winner.prize} 
+            <img src="https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100" class="coin-icon">
+        </div>
+    `;
 
-        let listHtml = "";
-        const playersArr = Object.values(data.players).sort((a,b) => (b.survivalTime || 0) - (a.survivalTime || 0));
-        playersArr.forEach((p, idx) => {
-            const isWinnerRow = (p.name === winner.name);
-            listHtml += `
-                <div class="stat-row" style="color:${isWinnerRow ? '#f1c40f' : '#fff'}; font-weight:${isWinnerRow ? 'bold' : 'normal'}">
-                    <span>${idx + 1}. ${p.name}</span>
-                    <span>${p.survivalTime || 0}s</span>
-                </div>`;
-        });
-        document.getElementById('stats-list').innerHTML = listHtml;
-        document.getElementById('end-actions').style.display = 'block';
-    }
+    let listHtml = "";
+    // Lấy danh sách từ data.players
+    const playersArr = Object.values(data.players || {}).sort((a,b) => (b.survivalTime || 0) - (a.survivalTime || 0));
+    
+    playersArr.forEach((p, idx) => {
+        // Kiểm tra xem đây có phải dòng của người thắng không
+        const isWinnerRow = (p.name === winner.name);
+        listHtml += `
+            <div class="stat-row" style="color:${isWinnerRow ? '#f1c40f' : '#fff'}; font-weight:${isWinnerRow ? 'bold' : 'normal'}">
+                <span>${idx + 1}. ${p.name || "Người chơi"}</span>
+                <span>${p.survivalTime || 0}s</span>
+            </div>`;
+    });
+    
+    document.getElementById('stats-list').innerHTML = listHtml;
+    document.getElementById('end-actions').style.display = 'block';
+}
 
     async function goBack() {
         if (isHost) {
