@@ -147,43 +147,65 @@
         spawnTimer = setTimeout(spawnLoop, Math.max(250, 850 - (seconds * 12))); 
     }
 
-    // --- 5. LOGIC KẾT THÚC ---
+   // --- 5. LOGIC KẾT THÚC ---
+    let isPlaying = true; // Biến kiểm soát riêng cho việc chơi game
+
     function endGame(title) {
+        if (!isPlaying) return; // Tránh chạy endGame nhiều lần
+        isPlaying = false;
+        
         paddle.style.background = 'red';
         clearTimeout(spawnTimer);
         document.getElementById('msg').style.display = 'block';
         document.getElementById('msg-title').innerText = title;
         document.getElementById('winner-info').innerText = "Đang chờ người chơi khác...";
         
+        // Cập nhật trạng thái "đã chết" lên Firebase
         db.ref(`rooms/${hostId}/players/${auth.currentUser.uid}`).update({ 
             state: 'dead', 
             survivalTime: seconds 
         });
-        if (!isHost) gameOver = true;
+
+        // Chỉ khóa hẳn gameOver đối với người chơi thường
+        if (!isHost) {
+            gameOver = true;
+        }
     }
 
     function hostMonitor() {
+        // Lắng nghe liên tục, không bị ngắt kể cả khi Host đã gọi endGame()
         db.ref(`rooms/${hostId}/players`).on('value', async snap => {
             const players = snap.val();
+            // Điều kiện: Phải là Host, game chưa có winnerData (trên server) và chưa xác nhận gameOver (local)
             if (!players || !isHost || gameOver) return;
+
             const entries = Object.entries(players);
             const alive = entries.filter(p => p[1].state === 'alive');
 
+            // Khi tất cả người chơi trong danh sách đều đã state: 'dead'
             if (alive.length === 0 && entries.length > 0) {
+                // Kiểm tra lại trạng thái phòng một lần nữa để tránh ghi đè
                 const roomSnap = await db.ref(`rooms/${hostId}`).once('value');
                 const roomData = roomSnap.val();
-                if (roomData.status === 'finished') return;
+                if (roomData.status === 'finished') {
+                    gameOver = true;
+                    return;
+                }
 
+                // Tìm người có thời gian sống lâu nhất
                 const sorted = entries.sort((a, b) => (b[1].survivalTime || 0) - (a[1].survivalTime || 0));
                 const winner = sorted[0];
                 const totalPrize = roomData.totalPrize || 0;
 
-                gameOver = true;
-                db.ref().update({
-                    [`users/${winner[0]}/coins`]: firebase.database.ServerValue.increment(totalPrize),
-                    [`rooms/${hostId}/status`]: 'finished',
-                    [`rooms/${hostId}/winnerData`]: { name: winner[1].name, prize: totalPrize }
-                });
+                // Khóa local trước khi đẩy dữ liệu lên
+                gameOver = true; 
+                
+                const finalUpdates = {};
+                finalUpdates[`users/${winner[0]}/coins`] = firebase.database.ServerValue.increment(totalPrize);
+                finalUpdates[`rooms/${hostId}/status`] = 'finished';
+                finalUpdates[`rooms/${hostId}/winnerData`] = { name: winner[1].name, prize: totalPrize };
+                
+                db.ref().update(finalUpdates);
             }
         });
     }
