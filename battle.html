@@ -81,31 +81,37 @@
     ];
 
     // --- 3. LOGIC KẾT NỐI ---
-    auth.onAuthStateChanged(user => {
-        if (!user || !hostId) return window.location.href = "auth.html";
-        isHost = (user.uid === hostId);
-        
-        db.ref(`rooms/${hostId}/players/${user.uid}`).update({ state: 'alive', survivalTime: 0 });
-        // --- 3. LOGIC KẾT NỐI ---
-        db.ref(`rooms/${hostId}/status`).on('value', snap => {
-            const status = snap.val();
-            if (status === 'finished') {
-                // Dừng game cho người thắng (người chưa gọi endGame)
-                if (isPlaying) {
-                    isPlaying = false;
-                    clearTimeout(spawnTimer);
-                }
-                
-                // Luôn render kết quả khi có tín hiệu từ Host
-                renderResult();
-                gameOver = true; 
-            }
+   auth.onAuthStateChanged(async user => {
+    if (!user || !hostId) return window.location.href = "auth.html";
+    isHost = (user.uid === hostId);
+    
+    // Nếu là Host, reset trạng thái phòng về mặc định
+    if (isHost) {
+        await db.ref(`rooms/${hostId}`).update({
+            status: 'playing', // Đảm bảo status không phải 'finished'
+            winnerData: null
         });
+    }
 
-        if (isHost) hostMonitor();
-        spawnLoop();
+    // Cập nhật bản thân là 'alive'
+    db.ref(`rooms/${hostId}/players/${user.uid}`).update({ 
+        state: 'alive', 
+        survivalTime: 0,
+        name: localStorage.getItem('playerName') || 'Người chơi'
     });
 
+    // Lắng nghe lệnh kết thúc
+    db.ref(`rooms/${hostId}/status`).on('value', snap => {
+        if (snap.val() === 'finished') {
+            isPlaying = false;
+            clearTimeout(spawnTimer);
+            renderResult();
+        }
+    });
+
+    if (isHost) hostMonitor();
+    spawnLoop();
+});
     // --- 4. GAMEPLAY ---
     function movePaddle(x) {
         if (!isPlaying) return;
