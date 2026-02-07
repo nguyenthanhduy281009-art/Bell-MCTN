@@ -126,8 +126,14 @@
 
 
         if (isHost) {
-            db.ref(`rooms/${hostId}`).update({ status: 'waiting' });
-        }
+            const roomRef = db.ref(`rooms/${hostId}`);
+            roomRef.update({ status: 'waiting' });
+
+            roomRef.onDisconnect().update({
+                status: 'finished'
+            });
+       }
+
 
         // --- 2. HIỂN THỊ NGƯỜI CHƠI ---
         db.ref(`rooms/${hostId}/players`).on('value', snap => {
