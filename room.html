@@ -76,7 +76,6 @@
         <button class="btn-control btn-exit" onclick="quitRoom()">Thoát</button>
         <button class="btn-control btn-start">Bắt Đầu</button>
     </div>
-
 <script>
     const firebaseConfig = {
         apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
@@ -94,7 +93,6 @@
     auth.onAuthStateChanged(user => {
         if (!user) return location.href = 'auth.html';
 
-        // --- 1. KHAI BÁO BIẾN ---
         const urlParams = new URLSearchParams(window.location.search);
         let hostId = urlParams.get('id') || user.uid;
         const isHost = (hostId === user.uid);
@@ -105,14 +103,7 @@
             window.history.replaceState({}, '', '?id=' + user.uid);
         }
 
-        // --- 2. QUẢN LÝ ONLINE & GHI DANH ---
-        const myStatusRef = db.ref('/status/' + user.uid);
-        db.ref('.info/connected').on('value', (snap) => {
-            if (snap.val() === false) return;
-            myStatusRef.onDisconnect().set({ state: 'offline', last_changed: firebase.database.ServerValue.TIMESTAMP })
-            .then(() => myStatusRef.set({ state: 'online', last_changed: firebase.database.ServerValue.TIMESTAMP }));
-        });
-
+        // --- 1. QUẢN LÝ ONLINE & GHI DANH ---
         const myRoomRef = db.ref(`rooms/${hostId}/players/${user.uid}`);
         myRoomRef.update({
             name: user.displayName || "Người chơi",
@@ -122,16 +113,14 @@
         }); 
         myRoomRef.onDisconnect().remove();
 
-        // Nếu là Host, reset status phòng khi mới tạo/vào lại
         if (isHost) {
             db.ref(`rooms/${hostId}`).update({ status: 'waiting' });
         }
 
-        // --- 3. HIỂN THỊ NGƯỜI CHƠI ---
+        // --- 2. HIỂN THỊ NGƯỜI CHƠI ---
         db.ref(`rooms/${hostId}/players`).on('value', snap => {
             const players = snap.val() || {};
             for(let i=0; i<=5; i++) setPlayer(i, null);
-            
             const playerEntries = Object.entries(players).sort((a, b) => a[1].joinedAt - b[1].joinedAt);
             playerEntries.forEach(([pUid, pData], index) => {
                 if (index <= 5) {
@@ -142,63 +131,62 @@
             });
         });
 
-        // --- 4. QUẢN LÝ CƯỢC ---
+        // --- 3. QUẢN LÝ CƯỢC ---
         if (!isHost) {
             betInput.readOnly = true;
             betInput.style.opacity = "0.7";
             startBtn.innerText = "SẴN SÀNG";
             startBtn.style.background = "#3498db";
         }
-
         betInput.onchange = () => isHost && db.ref(`rooms/${hostId}/bet`).set(parseInt(betInput.value) || 0);
         db.ref(`rooms/${hostId}/bet`).on('value', s => { if(s.exists()) betInput.value = s.val(); });
 
-        // --- 5. LOGIC NÚT BẤM (BẮT ĐẦU / SẴN SÀNG) ---
+        // --- 4. LOGIC BẮT ĐẦU / SẴN SÀNG ---
         startBtn.onclick = async () => {
             const snap = await db.ref(`rooms/${hostId}/players`).once('value');
             const players = snap.val() || {};
             const playerEntries = Object.entries(players);
 
             if (!isHost) {
-                // Logic Sẵn sàng cho khách
                 const currentReady = players[user.uid]?.isReady || false;
                 db.ref(`rooms/${hostId}/players/${user.uid}/isReady`).set(!currentReady);
                 startBtn.innerText = !currentReady ? "HỦY SẴN SÀNG" : "SẴN SÀNG";
                 startBtn.style.background = !currentReady ? "#e67e22" : "#3498db";
             } else {
-                // Logic Bắt đầu cho Host
                 const bet = parseInt(betInput.value) || 0;
                 const allReady = playerEntries.every(([id, p]) => id === hostId || p.isReady === true);
                 
                 if (playerEntries.length < 2) return alert("Cần ít nhất 2 người chơi!");
                 if (!allReady) return alert("Chờ mọi người sẵn sàng!");
 
-                // Kiểm tra tiền của tất cả người chơi
                 for (let [id, p] of playerEntries) {
                     const uS = await db.ref(`users/${id}/coins`).once('value');
                     if ((uS.val() || 0) < bet) return alert(`Người chơi ${p.name} không đủ xu!`);
                 }
 
-                // Trừ tiền và bắt đầu
                 const updates = {};
                 playerEntries.forEach(([id, _]) => {
                     updates[`users/${id}/coins`] = firebase.database.ServerValue.increment(-bet);
+                    updates[`rooms/${hostId}/players/${id}/state`] = 'alive';
+                    updates[`rooms/${hostId}/players/${id}/survivalTime`] = 0;
                 });
+
                 updates[`rooms/${hostId}/status`] = 'playing';
                 updates[`rooms/${hostId}/totalPrize`] = bet * playerEntries.length;
-                
+                await db.ref(`rooms/${hostId}/winnerData`).remove();
+
                 db.ref().update(updates);
             }
         };
 
-        // --- 6. TỰ ĐỘNG CHUYỂN TRANG KHI TRẬN ĐẤU BẮT ĐẦU ---
+        // --- 5. TỰ ĐỘNG CHUYỂN TRANG (QUAN TRỌNG NHẤT) ---
         db.ref(`rooms/${hostId}/status`).on('value', s => {
             if (s.val() === 'playing') {
                 window.location.href = 'battle.html?id=' + hostId;
             }
         });
 
-        // --- 7. LỜI MỜI & BẠN BÈ ---
+        // --- 6. LỜI MỜI & BẠN BÈ ---
         db.ref('invites/' + user.uid).on('value', snap => {
             const inviteData = snap.val();
             if (inviteData) {
@@ -211,12 +199,12 @@
 
         db.ref('friends/' + user.uid).on('value', s => {
             const list = document.getElementById('friend-list');
+            if(!list) return;
             list.innerHTML = ''; 
             Object.entries(s.val() || {}).forEach(([fUid, fInfo]) => {
                 db.ref('/status/' + fUid).on('value', st => {
                     const data = st.val() || {};
-                    const isOnline = data.state === 'online';
-                    updateFriendUI(fUid, fInfo, isOnline);
+                    updateFriendUI(fUid, fInfo, data.state === 'online');
                 });
             });
         });
@@ -236,6 +224,7 @@
 
     function updateFriendUI(uid, data, isOnline) {
         const list = document.getElementById('friend-list');
+        if(!list) return;
         let row = document.getElementById('f-' + uid);
         const content = `
             <div style="display:flex;align-items:center;gap:10px;">
@@ -262,30 +251,8 @@
         }).then(() => alert("Đã gửi lời mời!"));
     }
 
-    function quitRoom() {
-        location.href = 'friends.html';
-    }
-    // Tìm hàm xử lý nút Bắt đầu trong room.html
-function startGame() {
-    const roomId = new URLSearchParams(window.location.search).get('id');
-    
-    // 1. Lấy mức cược của phòng và số lượng người chơi
-    db.ref(`rooms/${roomId}`).once('value', snap => {
-        const roomData = snap.val();
-        const players = roomData.players;
-        const playerIds = Object.keys(players);
-        const bet = roomData.bet || 0;
-        const totalPrize = bet * playerIds.length; // Tổng giải thưởng
-
-        // 2. Cập nhật status và totalPrize lên Firebase
-        db.ref(`rooms/${roomId}`).update({
-            status: 'playing',
-            totalPrize: totalPrize
-        }).then(() => {
-            console.log("Trận đấu bắt đầu, tổng giải thưởng:", totalPrize);
-        });
-    });
-}
+    function quitRoom() { location.href = 'friends.html'; }
 </script>
+
 </body>
 </html>
