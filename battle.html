@@ -252,6 +252,7 @@
             }
         });
     }
+   }
     async function renderResult() {
     const snap = await db.ref(`rooms/${hostId}`).once('value');
     const data = snap.val(); 
