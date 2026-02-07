@@ -178,34 +178,37 @@
             const entries = Object.entries(players);
             const alive = entries.filter(p => p[1].state === 'alive');
 
-            // Khi không còn ai sống (alive.length === 0)
-            if (alive.length === 0 && entries.length > 0) {
-                isProcessing = true; // Khóa ngay lập tức để tránh trùng lặp
+           if (alive.length === 0 && entries.length > 0) {
+    setTimeout(async () => {
+        const roomSnap = await db.ref(`rooms/${hostId}`).once('value');
+        const roomData = roomSnap.val();
+        if (!roomData || roomData.status === 'finished') return;
 
-                // Đợi 1 giây để đảm bảo mọi máy đã kịp ghi survivalTime lên server
-                setTimeout(async () => {
-                    const roomSnap = await db.ref(`rooms/${hostId}`).once('value');
-                    const roomData = roomSnap.val();
-                    
-                    if (roomData.status === 'finished') return;
+        isProcessing = true; // ✅ ĐẶT Ở ĐÂY
 
-                    // Lấy lại danh sách players mới nhất sau 1s đợi
-                    const finalPlayers = Object.entries(roomData.players);
-                    const sorted = finalPlayers.sort((a, b) => (b[1].survivalTime || 0) - (a[1].survivalTime || 0));
-                    const winner = sorted[0];
-                    const totalPrize = roomData.totalPrize || 0;
+        const finalPlayers = Object.entries(roomData.players || {});
+        if (finalPlayers.length === 0) return;
 
-                    // Gửi lệnh tổng kết lên server
-                    const updates = {};
-                    updates[`users/${winner[0]}/coins`] = firebase.database.ServerValue.increment(totalPrize);
-                    updates[`rooms/${hostId}/status`] = 'finished';
-                    updates[`rooms/${hostId}/winnerData`] = { name: winner[1].name, prize: totalPrize };
-                    
-                    db.ref().update(updates);
-                }, 1000);
-            }
-        });
-    }
+        const sorted = finalPlayers.sort(
+            (a, b) => (b[1].survivalTime || 0) - (a[1].survivalTime || 0)
+        );
+
+        const winner = sorted[0];
+        const totalPrize = roomData.totalPrize || 0;
+
+        const updates = {};
+        updates[`users/${winner[0]}/coins`] =
+            firebase.database.ServerValue.increment(totalPrize);
+        updates[`rooms/${hostId}/status`] = 'finished';
+        updates[`rooms/${hostId}/winnerData`] = {
+            name: winner[1].name,
+            prize: totalPrize
+        };
+
+        db.ref().update(updates);
+    }, 1000);
+}
+
     async function renderResult() {
         const snap = await db.ref(`rooms/${hostId}`).once('value');
         const data = snap.val(); 
