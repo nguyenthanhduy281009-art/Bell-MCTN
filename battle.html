@@ -171,19 +171,21 @@
 
     // --- 5. KẾT THÚC & TÍNH ĐIỂM ĐỐI KHÁNG ---
     function endGame(title) {
-        if (gameOver) return;
-        gameOver = true;
+        // Dừng rơi đồ trên màn hình người này
         paddle.style.background = 'red';
         document.getElementById('msg').style.display = 'block';
         document.getElementById('msg-title').innerText = title;
         document.getElementById('winner-info').innerText = "Đang chờ người chơi khác...";
         
+        // Gửi dữ liệu chết lên Firebase
         db.ref(`rooms/${hostId}/players/${auth.currentUser.uid}`).update({ 
             state: 'dead', 
             survivalTime: seconds 
         });
-    }
 
+        // Nếu KHÔNG PHẢI Host thì mới khóa gameOver ở đây
+        if (!isHost) gameOver = true; 
+    }
     function hostMonitor() {
     db.ref(`rooms/${hostId}/players`).on('value', async snap => {
         const players = snap.val(); 
