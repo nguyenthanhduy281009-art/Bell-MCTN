@@ -106,7 +106,7 @@
     auth.onAuthStateChanged(async user => {
         if (!user || !hostId) return window.location.href = "auth.html";
         isHost = (user.uid === hostId);
-        
+    });  
         // Lấy tên từ máy người chơi
         const myName = localStorage.getItem('playerName') || 'Người chơi';
         
@@ -275,11 +275,16 @@
 
     let listHtml = "";
     // Lấy danh sách từ data.players
-    const playersArr = Object.values(data.players || {}).sort((a,b) => (b.survivalTime || 0) - (a.survivalTime || 0));
+    // Lấy cả Key (UID) và Value để so sánh cho chuẩn
+    const playersArr = Object.entries(data.players || {}).map(([uid, info]) => ({
+        uid: uid,
+        ...info
+    })).sort((a, b) => (b.survivalTime || 0) - (a.survivalTime || 0));
     
-    playersArr.forEach((p, idx) => {
-        // Kiểm tra xem đây có phải dòng của người thắng không
-        const isWinnerRow = (p.name === winner.name);
+playersArr.forEach((p, idx) => {
+        // So sánh UID của từng người (p.uid) với UID người thắng (winner.uid)
+        const isWinnerRow = (p.uid === winner.uid); 
+        
         listHtml += `
             <div class="stat-row" style="color:${isWinnerRow ? '#f1c40f' : '#fff'}; font-weight:${isWinnerRow ? 'bold' : 'normal'}">
                 <span>${idx + 1}. ${p.name || "Người chơi"}</span>
