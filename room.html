@@ -209,9 +209,27 @@
                 });
             });
         });
-    }); // Đóng auth.onAuthStateChanged ở đây
 
-    // --- CÁC HÀM HỖ TRỢ (Nằm ngoài) ---
+        // --- 7. LẮNG NGHE LỜI MỜI ---
+        db.ref('invites/' + user.uid).on('value', snap => {
+            const inviteData = snap.val();
+            if (inviteData && inviteData.timestamp) {
+                const now = Date.now();
+                if (now - inviteData.timestamp < 60000) { 
+                    if (confirm(`Lời mời từ ${inviteData.fromName}. Tham gia phòng mới?`)) {
+                        db.ref('invites/' + user.uid).remove();
+                        // Rời phòng cũ trước khi sang phòng mới
+                        if (hostId && user) db.ref(`rooms/${hostId}/players/${user.uid}`).remove();
+                        window.location.href = 'room.html?id=' + inviteData.roomId;
+                    } else {
+                        db.ref('invites/' + user.uid).remove();
+                    }
+                }
+            }
+        }); 
+    }); // Đóng auth.onAuthStateChanged chuẩn
+
+    // --- CÁC HÀM HỖ TRỢ ---
     function setPlayer(index, url) {
         const s = document.getElementById(`s${index}`);
         if (!s) return;
@@ -226,6 +244,7 @@
 
     function updateFriendUI(uid, data, isOnline) {
         const list = document.getElementById('friend-list');
+        if(!list) return;
         let row = document.getElementById('f-' + uid);
         const content = `
             <div style="display:flex;align-items:center;gap:10px;">
@@ -236,6 +255,7 @@
                 <span style="font-size:12px;font-weight:bold;">${data.name || 'Bạn'}</span>
             </div>
             ${isOnline ? `<button class="btn-invite" onclick="invite('${uid}')">MỜI</button>` : '<span style="font-size:10px;opacity:0.3">OFF</span>'}`;
+        
         if (row) row.innerHTML = content;
         else {
             const div = document.createElement('div');
@@ -247,19 +267,15 @@
     function invite(uid) {
         db.ref('invites/' + uid).set({ 
             fromName: auth.currentUser.displayName, 
-            roomId: auth.currentUser.uid, 
+            roomId: hostId, 
             timestamp: firebase.database.ServerValue.TIMESTAMP 
         }).then(() => alert("Đã gửi lời mời!"));
     }
 
     function quitRoom() {
-    if (hostId && user) {
-        db.ref(`rooms/${hostId}/players/${user.uid}`).update({
-            state: 'dead'
-        });
+        if (hostId && user) db.ref(`rooms/${hostId}/players/${user.uid}`).remove();
+        location.href = 'friends.html';
     }
-    location.href = 'friends.html';
-}
 </script>
 </body>
 </html>
