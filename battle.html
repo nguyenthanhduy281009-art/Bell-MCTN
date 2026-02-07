@@ -89,18 +89,18 @@
         // --- 3. LOGIC KẾT NỐI ---
         db.ref(`rooms/${hostId}/status`).on('value', snap => {
             const status = snap.val();
-            if (status === 'finished' && !gameOver) {
-                // Nếu trận đấu kết thúc mà mình vẫn đang chơi (mình thắng)
-                // thì phải tự dừng game lại ngay
+            if (status === 'finished') {
+                // Dừng game cho người thắng (người chưa gọi endGame)
                 if (isPlaying) {
                     isPlaying = false;
                     clearTimeout(spawnTimer);
                 }
-                gameOver = true;
+                
+                // Luôn render kết quả khi có tín hiệu từ Host
                 renderResult();
+                gameOver = true; 
             }
         });
-
 
         if (isHost) hostMonitor();
         spawnLoop();
@@ -188,24 +188,23 @@
    function hostMonitor() {
         const playersRef = db.ref(`rooms/${hostId}/players`);
         playersRef.on('value', async snap => {
-            // Kiểm tra đúng là Host và trận đấu chưa kết thúc trên giao diện
-            if (auth.currentUser.uid !== hostId || gameOver) return;
+            // Chỉ kiểm tra quyền Host và chưa kết thúc
+            if (auth.currentUser.uid !== hostId || hostProcessing) return; // Dùng hostProcessing thay vì gameOver
             if (!snap.exists()) return;
 
             const players = snap.val();
             const entries = Object.entries(players);
             const alive = entries.filter(([_, p]) => p.state === 'alive');
 
-            // Nếu chỉ còn 0 hoặc 1 người sống, kết thúc trận
             if (alive.length <= 1) {
-                // Sắp xếp tìm người thắng dựa trên survivalTime đã cập nhật mỗi giây
+                hostProcessing = true; // Chặn để không update liên tục
+                
                 entries.sort((a, b) => (b[1].survivalTime || 0) - (a[1].survivalTime || 0));
                 const winner = entries[0];
 
                 const roomSnap = await db.ref(`rooms/${hostId}`).once('value');
                 const totalPrize = roomSnap.val()?.totalPrize || 0;
 
-                // Cập nhật lên Firebase - lệnh này sẽ kích hoạt renderResult cho tất cả mọi người
                 db.ref(`rooms/${hostId}`).update({
                     status: 'finished',
                     winnerData: {
@@ -213,8 +212,7 @@
                         prize: totalPrize
                     }
                 });
-                
-                playersRef.off(); // Ngắt lắng nghe sau khi đã xong việc
+                playersRef.off();
             }
         });
     }
