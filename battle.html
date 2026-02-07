@@ -105,8 +105,7 @@
     // --- 3. LOGIC KẾT NỐI ---
     auth.onAuthStateChanged(async user => {
         if (!user || !hostId) return window.location.href = "auth.html";
-        isHost = (user.uid === hostId);
-    });  
+        isHost = (user.uid === hostId);  
         // Lấy tên từ máy người chơi
         const myName = localStorage.getItem('playerName') || 'Người chơi';
         
