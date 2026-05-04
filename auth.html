@@ -3,68 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Xác thực - PLANTREES GARDEN</title>
+    <title>Xác thực - SKY DODGE</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        :root { --primary: #2e7d32; --accent: #81c784; --bg: #f0f4f0; }
-        body { 
-            font-family: 'Segoe UI', Roboto, sans-serif; 
-            background: var(--bg); 
-            display: flex; justify-content: center; align-items: center; 
-            height: 100vh; margin: 0; 
-        }
-        .box { 
-            background: white; padding: 40px; border-radius: 30px; 
-            box-shadow: 0 15px 35px rgba(46, 125, 50, 0.1); 
-            width: 350px; text-align: center; 
-            transition: all 0.3s ease;
-        }
-        .brand-name { 
-            font-size: 36px; font-weight: 900; color: var(--primary); 
-            letter-spacing: -1.5px; margin-bottom: 5px;
-        }
-        #title { 
-            margin-top: 0; margin-bottom: 30px; font-size: 14px; 
-            color: #888; text-transform: uppercase; letter-spacing: 2px;
-        }
-        .input-group { position: relative; margin: 10px 0; }
-        input { 
-            width: 100%; padding: 15px; border: 2px solid #f0f0f0; 
-            border-radius: 15px; box-sizing: border-box; outline: none; 
-            background: #f9f9f9; color: #333; font-size: 15px;
-            transition: 0.3s;
-        }
-        input:focus { border-color: var(--accent); background: white; }
-        .show-btn { 
-            position: absolute; right: 12px; top: 12px; 
-            background: #eee; border: none; padding: 6px 10px; 
-            border-radius: 8px; font-size: 10px; cursor: pointer; color: #666; 
-        }
-        button.main { 
-            width: 100%; padding: 16px; background: var(--primary); 
-            color: #fff; border: none; border-radius: 15px; 
-            cursor: pointer; font-weight: bold; font-size: 16px; 
-            margin-top: 15px; box-shadow: 0 8px 20px rgba(46, 125, 50, 0.2);
-            transition: 0.3s;
-        }
-        button.main:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(46, 125, 50, 0.3); }
-        .link { margin-top: 25px; font-size: 13px; color: var(--primary); cursor: pointer; font-weight: 600; }
-        .forgot { display: block; text-align: right; font-size: 12px; color: #999; margin-bottom: 15px; cursor: pointer; }
-        #error { color: #e53935; font-size: 12px; margin-top: 15px; min-height: 18px; font-weight: 500; }
+        :root { --primary: #4CAF50; }
+        body { font-family: sans-serif; background: #1a1a1a; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .box { background: #222; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: 320px; text-align: center; color: white; }
+        .brand-name { font-size: 32px; font-weight: 900; margin-bottom: 5px; background: linear-gradient(45deg, #4CAF50, #8BC34A); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 1px; }
+        #title { margin-top: 0; margin-bottom: 20px; font-size: 16px; color: #bbb; }
+        .input-group { position: relative; margin: 8px 0; }
+        input { width: 100%; padding: 12px; border: 1px solid #444; border-radius: 8px; box-sizing: border-box; outline: none; background: #000; color: #fff; margin-bottom: 8px; }
+        .show-btn { position: absolute; right: 10px; top: 10px; background: #333; border: none; padding: 5px; border-radius: 4px; font-size: 10px; cursor: pointer; color: #fff; }
+        button.main { width: 100%; padding: 12px; background: var(--primary); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .link { margin-top: 15px; font-size: 13px; color: #4CAF50; cursor: pointer; }
+        .forgot { display: block; text-align: right; font-size: 12px; color: #888; margin-bottom: 10px; text-decoration: none; cursor: pointer; }
+        #error { color: #ff4d4d; font-size: 12px; margin-top: 10px; min-height: 15px; }
     </style>
 </head>
 <body>
 <div class="box">
-    <div class="brand-name">PLANTREES</div>
+    <div class="brand-name">SKY DODGE</div>
     <h2 id="title">ĐĂNG NHẬP</h2>
     
-    <input type="text" id="username" placeholder="Tên người làm vườn" style="display: none;">
+    <input type="text" id="username" placeholder="Tên trong game (Duy nhất)" style="display: none;">
     
-    <div class="input-group">
-        <input type="email" id="email" placeholder="Email của bạn">
-    </div>
+    <input type="email" id="email" placeholder="Email của bạn">
     
     <div class="input-group">
         <input type="password" id="pass" placeholder="Mật khẩu">
@@ -81,15 +46,14 @@
 </div>
 
 <script>
-// Giữ nguyên Config Plantrees của Duy
 const firebaseConfig = {
-  apiKey: "AIzaSyAASOFywyAkx2G7ubR_XsODI1U2x7mSMpE",
-  authDomain: "plantrees-b1d99.firebaseapp.com",
-  databaseURL: "https://plantrees-b1d99-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "plantrees-b1d99",
-  storageBucket: "plantrees-b1d99.firebasestorage.app",
-  messagingSenderId: "208821406000",
-  appId: "1:208821406000:web:b4fac89c9a2f65d739e0f5"
+  apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
+  authDomain: "sky-dodge-8f537.firebaseapp.com",
+  databaseURL: "https://sky-dodge-8f537-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "sky-dodge-8f537",
+  storageBucket: "sky-dodge-8f537.firebasestorage.app",
+  messagingSenderId: "169224412363",
+  appId: "1:169224412363:web:de0d018158d8b34e854f4e"
 };
     
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
@@ -100,9 +64,8 @@ let isLogin = true;
 
 function togglePass() {
     const p = document.getElementById("pass");
-    const btn = event.target;
     p.type = p.type === "password" ? "text" : "password";
-    btn.innerText = p.type === "password" ? "HIỆN" : "ẨN";
+    event.target.innerText = p.type === "password" ? "HIỆN" : "ẨN";
 }
 
 function switchMode() {
@@ -124,7 +87,6 @@ async function forgotPass() {
     } catch (e) { alert("Lỗi: " + e.message); }
 }
 
-// Giữ nguyên Logic đăng ký/đăng nhập từ Sky Dodge của Duy
 async function handleAuth() {
     const email = document.getElementById("email").value.trim();
     const pass = document.getElementById("pass").value;
@@ -141,22 +103,24 @@ async function handleAuth() {
         } else {
             if (nickname.length < 3) return err.innerText = "Tên ít nhất 3 ký tự!";
 
-            // Tạo tài khoản
+            // 1. Tạo tài khoản trước để có quyền truy cập (vượt qua Rules auth != null)
             const res = await auth.createUserWithEmailAndPassword(email, pass);
             
-            // Kiểm tra tên trùng
+            // 2. Sau khi đã 'auth', mới kiểm tra tên trùng
             const nameCheck = await db.ref('users').orderByChild('name').equalTo(nickname).once('value');
             if (nameCheck.exists()) {
+                // Nếu trùng, xóa tài khoản vừa tạo và báo lỗi
                 await res.user.delete();
                 return err.innerText = "Tên này đã có người dùng!";
             }
 
-            // Lưu dữ liệu vào Database
+            // 3. Cập nhật Profile và lưu vào Database
             await res.user.updateProfile({ displayName: nickname });
             await db.ref('users/' + res.user.uid).set({
                 name: nickname,
                 email: email,
-                waterLevel: 0, // Đã đổi thành waterLevel cho đúng game Plantrees
+                coins: 0,
+                highScore: 0,
                 createdAt: Date.now()
             });
 
