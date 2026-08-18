@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#a855f7">
+    <title>Cửa hàng Ván Xịn - Sky Dodge</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        :root { --primary: #a855f7; --bg: #121212; --card: #1e1e1e; }
+        body {
+            font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white;
+            margin: 0; display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden;
+        }
+        .header { padding: 20px; text-align: center; }
+        #coin-display { color: #ffeb3b; font-weight: bold; font-size: 22px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .coin-img { width: 24px; height: 24px; border-radius: 50%; }
+        .carousel-container {
+            flex: 1; display: flex; align-items: center; overflow-x: auto;
+            scroll-snap-type: x mandatory; padding: 0 50px; gap: 30px;
+            scrollbar-width: none; cursor: grab; user-select: none;
+        }
+        .carousel-container::-webkit-scrollbar { display: none; }
+        .carousel-container::-webkit-scrollbar { display: none; }
+        .item-wrapper { flex: 0 0 220px; scroll-snap-align: center; display: flex; flex-direction: column; align-items: center; transition: 0.3s; }
+        .item-wrapper.active { transform: scale(1.15); }
+        .paddle-box {
+            width: 200px; height: 120px; background: var(--card);
+            border: 2px solid #333; border-radius: 20px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            position: relative; box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+        .item-wrapper.active .paddle-box { border-color: var(--primary); box-shadow: 0 0 25px rgba(168, 85, 247, 0.4); }
+        .paddle-visual { width: 140px; height: 14px; border-radius: 7px; margin-bottom: 10px; }
+        .lock-icon { position: absolute; top: 10px; right: 15px; font-size: 20px; }
+        .price-label { font-size: 18px; font-weight: 900; color: #ffeb3b; margin-top: 5px; display: flex; align-items: center; gap: 4px; }
+        .item-stat-mini { font-size: 14px; color: var(--primary); font-weight: bold; margin-top: 5px; }
+        .detail-panel { padding: 30px; background: var(--card); border-radius: 30px 30px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,0.5); text-align: center; }
+        .stat-highlight { color: var(--primary); font-weight: 900; font-size: 28px; margin: 10px 0; }
+        .btn-upgrade {
+            background: var(--primary); color: white; border: none;
+            padding: 15px 60px; font-weight: bold; font-size: 18px;
+            border-radius: 50px; cursor: pointer; transition: 0.2s;
+        }
+        .btn-upgrade:hover:not(:disabled) { filter: brightness(1.1); }
+        .btn-upgrade:active:not(:disabled) { transform: scale(0.96); }
+        .btn-upgrade:disabled { background: #444; color: #777; cursor: not-allowed; }
+        .btn-upgrade:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+        .bottom-nav { display: flex; justify-content: space-between; padding: 20px 40px; background: var(--card); font-weight: bold; color: #888; }
+        .bottom-nav div { transition: 0.2s; }
+        .bottom-nav div:hover { color: white; }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 600px) {
+            .header { padding: 14px; }
+            .carousel-container { padding: 0 20px; gap: 18px; }
+            .item-wrapper { flex: 0 0 180px; }
+            .paddle-box { width: 170px; height: 105px; }
+            .paddle-visual { width: 120px; }
+            .detail-panel { padding: 22px 16px; }
+            .stat-highlight { font-size: 22px; }
+            #cap-value { font-size: 20px; }
+            .btn-upgrade { padding: 14px 45px; font-size: 16px; }
+            .bottom-nav { padding: 16px 22px; font-size: 14px; }
+            #coin-display { font-size: 20px; }
+        }
+        @media (max-width: 380px) {
+            .carousel-container { padding: 0 12px; gap: 12px; }
+            .item-wrapper { flex: 0 0 165px; }
+            .paddle-box { width: 155px; height: 100px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h2 style="margin:0 0 10px 0">CỬA HÀNG</h2>
+        <div id="coin-display">0 <img src="https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100" class="coin-img" alt="Xu" onerror="this.style.display='none'"></div>
+    </div>
+
+    <div class="carousel-container" id="carousel"></div>
+
+   <div class="detail-panel">
+    <div id="p-name" style="font-size: 18px; color: #888; margin-bottom: 5px;">Tên Ván</div>
+
+    <div class="stat-highlight" style="font-size: 15px; color: #ddd;">
+        Khả năng chống chịu: <span id="cap-value" style="color: var(--primary); font-size: 22px; font-weight: 900;">0 TẤN</span>
+    </div>
+
+    <div style="font-size: 14px; color: #aaa; margin-top: 4px;">
+        Kích thước ván: <span id="width-value" style="color: #4fc3f7; font-weight: bold;">0px</span>
+    </div>
+
+    <button id="btn-main" class="btn-upgrade" onclick="handleAction()" style="margin-top: 15px;">ĐANG TẢI...</button>
+</div>
+
+    <div class="bottom-nav">
+        <div onclick="location.href='index.html'" style="cursor:pointer" role="button">QUAY LẠI</div>
+        <div id="btn-inventory" onclick="toggleInventory()" style="color: var(--primary); cursor:pointer" role="button">KHO ĐỒ</div>
+    </div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
+        authDomain: "sky-dodge-8f537.firebaseapp.com",
+        databaseURL: "https://sky-dodge-8f537-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "sky-dodge-8f537",
+        storageBucket: "sky-dodge-8f537.firebasestorage.app",
+        messagingSenderId: "169224412363",
+        appId: "1:169224412363:web:de0d018158d8b34e854f4e"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database(), auth = firebase.auth();
+    const coinImg = 'https://drive.google.com/thumbnail?id=13GfXHlWxw_dlc3eWxlO4p5D5HY1n361H&sz=w100';
+
+    // ĐƯA DANH SÁCH VÀ BIẾN RA NGOÀI ĐỂ CÁC HÀM KHÁC ĐỌC ĐƯỢC
+    const paddles = [
+        { id: 'default', name: 'Ván Gỗ Mục', cap: 3, price: 0, color: '#8d6e63', width: 125 },
+        { id: 'stone', name: 'Ván Đá Chẻ', cap: 5, price: 100, color: '#757575', width: 120 },
+        { id: 'iron', name: 'Ván Sắt Rỉ', cap: 8, price: 300, color: '#b0bec5', width: 115 },
+        { id: 'bronze', name: 'Ván Đồng Đúc', cap: 10, price: 500, color: '#cd7f32', width: 110 },
+        { id: 'leaf', name: 'Ván Lá Cây', cap: 12, price: 800, color: '#4caf50', width: 105 },
+        { id: 'ocean', name: 'Ván Đại Dương', cap: 15, price: 1000, color: '#2196f3', width: 100 },
+        { id: 'pink', name: 'Ván Hồng Ngọc', cap: 20, price: 1200, color: '#f06292', width: 95 },
+        { id: 'gold', name: 'Ván Vàng Ròng', cap: 25, price: 1500, color: '#ffd54f', width: 90 },
+        { id: 'diamond', name: 'Ván Kim Cương', cap: 28, price: 1800, color: '#4fc3f7', width: 85 },
+        { id: 'obsidian', name: 'Ván Hắc Điện Thạch', cap: 30, price: 2000, color: 'linear-gradient(45deg, #000000 30%, #4a008a 60%, #9d00ff 100%)', width: 80 }
+    ];
+
+    let currentIdx = 0, myCoins = 0, isInventoryMode = false, isProcessing = false;
+    let ownedPaddles = JSON.parse(localStorage.getItem('ownedPaddles')) || ['default'];
+
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            // 1. GIỮ TRẠNG THÁI ONLINE
+            const userStatusRef = db.ref('/status/' + user.uid);
+            db.ref('.info/connected').on('value', (snap) => {
+                if (snap.val() === false) return;
+                userStatusRef.onDisconnect().set({ state: 'offline', last_changed: firebase.database.ServerValue.TIMESTAMP })
+                .then(() => {
+                    userStatusRef.set({ state: 'online', last_changed: firebase.database.ServerValue.TIMESTAMP });
+                });
+            });
+
+            // 2. THEO DÕI XU
+            db.ref('users/' + user.uid + '/coins').on('value', s => {
+                myCoins = Number(s.val()) || 0;
+                render();
+            });
+
+            // 3. THEO DÕI VÁN ĐÃ MUA (nguồn chính thức từ database)
+            db.ref('users/' + user.uid + '/ownedPaddles').on('value', s => {
+                const list = s.val();
+                if (Array.isArray(list) && list.length > 0) {
+                    // Lọc trùng lặp và chuẩn hóa dữ liệu
+                    ownedPaddles = list.filter((id, i) => list.indexOf(id) === i && paddles.some(p => p.id === id));
+                    localStorage.setItem('ownedPaddles', JSON.stringify(ownedPaddles));
+                    render();
+                }
+            });
+        } else {
+            location.href = 'auth.html';
+        }
+    });
+
+    // --- CÁC LOGIC KHÁC GIỮ NGUYÊN ---
+    const slider = document.getElementById('carousel');
+    let isDown = false, startX, scrollLeft;
+    const startAction = (e) => { isDown = true; startX = (e.pageX || e.touches[0].pageX) - slider.offsetLeft; scrollLeft = slider.scrollLeft; };
+    const stopAction = () => isDown = false;
+    const moveAction = (e) => { if (!isDown) return; e.preventDefault(); const x = (e.pageX || e.touches[0].pageX) - slider.offsetLeft; const walk = (x - startX) * 2; slider.scrollLeft = scrollLeft - walk; };
+    slider.addEventListener('mousedown', startAction);
+    slider.addEventListener('touchstart', startAction, {passive: false});
+    window.addEventListener('mouseup', stopAction);
+    window.addEventListener('touchend', stopAction);
+    slider.addEventListener('mousemove', moveAction);
+    slider.addEventListener('touchmove', moveAction, {passive: false});
+
+    function toggleInventory() {
+        isInventoryMode = !isInventoryMode;
+        document.getElementById('btn-inventory').innerText = isInventoryMode ? "TẤT CẢ" : "KHO ĐỒ";
+        document.querySelector('h2').innerText = isInventoryMode ? "KHO ĐỒ" : "CỬA HÀNG";
+        currentIdx = 0;
+        render();
+    }
+
+    function render() {
+        document.getElementById('coin-display').innerHTML = `${Number(myCoins).toLocaleString('vi-VN')} <img src="${coinImg}" class="coin-img" onerror="this.style.display='none'">`;
+        const list = isInventoryMode ? paddles.filter(p => ownedPaddles.includes(p.id)) : paddles;
+        slider.innerHTML = list.map((p) => {
+            const originalIdx = paddles.findIndex(orig => orig.id === p.id);
+            const isOwned = ownedPaddles.includes(p.id);
+            return `
+                <div class="item-wrapper ${originalIdx === currentIdx ? 'active' : ''}" onclick="select(${originalIdx})">
+                    <div class="paddle-box">
+                        <div class="paddle-visual" style="background:${p.color}"></div>
+                        ${!isOwned ? '<div class="lock-icon" aria-hidden="true">🔒</div>' : ''}
+                        <div class="price-label">${isOwned ? 'SỞ HỮU' : Number(p.price).toLocaleString('vi-VN') + ' <img src="'+coinImg+'" class="coin-img"> '}</div>
+                    </div>
+                    <div style="margin-top:10px; font-size:12px; color:#888;">${p.name}</div>
+                </div>
+            `;
+        }).join('');
+        updateDetail();
+    }
+
+    function select(i) { currentIdx = i; render(); }
+
+    function updateDetail() {
+        const p = paddles[currentIdx], btn = document.getElementById('btn-main');
+        if (!p) return;
+        const isOwned = ownedPaddles.includes(p.id);
+        document.getElementById('p-name').innerText = p.name;
+        document.getElementById('cap-value').innerText = `${p.cap} TẤN`;
+        document.getElementById('width-value').innerText = `${p.width}px`;
+        if (isOwned) {
+            const isEquipped = localStorage.getItem('selectedPaddle') === p.id;
+            btn.innerText = isEquipped ? "ĐANG DÙNG" : "TRANG BỊ";
+            btn.disabled = isEquipped || isProcessing;
+        } else {
+            btn.innerText = "NÂNG CẤP";
+            btn.disabled = myCoins < p.price || isProcessing;
+        }
+    }
+
+    function equipPaddle(p) {
+        localStorage.setItem('selectedPaddle', p.id);
+        localStorage.setItem('paddleCapacity', p.cap);
+        localStorage.setItem('paddleColor', p.color);
+        localStorage.setItem('paddleWidth', p.width);
+    }
+
+    function handleAction() {
+        const p = paddles[currentIdx], user = auth.currentUser;
+        if (!p || !user || isProcessing) return;
+        const isOwned = ownedPaddles.includes(p.id);
+        if (isOwned) {
+            equipPaddle(p);
+            render();
+            alert("Đã trang bị: " + p.name);
+        } else {
+            const prevPaddle = paddles[currentIdx - 1];
+            if (currentIdx > 0 && !ownedPaddles.includes(prevPaddle.id)) {
+                alert("Bạn phải sở hữu " + prevPaddle.name + " trước đã!");
+                return;
+            }
+            if (myCoins >= p.price) {
+                if (confirm("Mua " + p.name + " với " + p.price.toLocaleString('vi-VN') + " xu?")) {
+                    isProcessing = true; // Khóa nút để chống nhấn đúp / mua 2 lần
+                    updateDetail();
+
+                    const userRef = db.ref('users/' + user.uid);
+                    // GIAO DỊCH NGUYÊN TỬ: trừ xu và ghi ván vào cùng một lúc
+                    // Nếu không đủ xu (do tab khác vừa dùng), giao dịch tự hủy → không mất xu oan
+                    userRef.transaction(userData => {
+                        if (!userData) return userData;
+                        const balance = Number(userData.coins) || 0;
+                        if (balance < p.price) return; // Hủy giao dịch nếu không đủ xu
+                        userData.coins = balance - p.price;
+                        userData.ownedPaddles = Array.isArray(userData.ownedPaddles) ? userData.ownedPaddles : ['default'];
+                        if (!userData.ownedPaddles.includes(p.id)) userData.ownedPaddles.push(p.id);
+                        return userData;
+                    }).then(result => {
+                        isProcessing = false;
+                        if (result.committed) {
+                            // Đồng bộ danh sách ván về máy sau khi mua thành công
+                            ownedPaddles = (result.snapshot.val().ownedPaddles || ['default']).filter(id => paddles.some(x => x.id === id));
+                            localStorage.setItem('ownedPaddles', JSON.stringify(ownedPaddles));
+                            equipPaddle(p);
+                            render();
+                            alert("Mua thành công! Đã trang bị: " + p.name);
+                        } else {
+                            render();
+                            alert("Giao dịch không thành công! Kiểm tra lại số xu của bạn.");
+                        }
+                    }).catch(err => {
+                        isProcessing = false;
+                        console.error(err);
+                        render();
+                        alert("Lỗi kết nối! Vui lòng thử lại.");
+                    });
+                }
+            } else { alert("Bạn không đủ xu!"); }
+        }
+    }
+</script>
+</body>
+</html>
