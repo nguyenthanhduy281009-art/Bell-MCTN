@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f0c29">
+    <title>Phòng Chờ - Sky Dodge</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <style>
+        :root { --bg: #0f0c29; --neon: #00d2ff; --purple: #9d50bb; --glass: rgba(255, 255, 255, 0.05); }
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body {
+            margin: 0; height: 100vh; display: flex; flex-direction: column;
+            background: radial-gradient(circle at center, #24244e 0%, #0f0c29 100%);
+            color: white; overflow: hidden;
+        }
+        .room-container { display: flex; flex: 1; padding: 15px; gap: 15px; overflow: hidden; }
+        .game-main { flex: 1.5; display: flex; flex-direction: column; gap: 15px; align-items: center; min-width: 0; }
+        .room-title { font-size: 14px; color: #8f95b8; margin: 0; }
+        .bet-bar {
+            width: 100%; background: var(--glass); border-left: 4px solid var(--neon);
+            padding: 10px 15px; border-radius: 12px; display: flex; align-items: center; gap: 10px;
+        }
+        .bet-bar input { background: none; border: none; color: var(--neon); font-size: 16px; font-weight: bold; width: 80px; outline: none; }
+        .bet-bar input:focus { outline: 2px solid var(--neon); border-radius: 4px; }
+
+        .slots-grid { display: grid; grid-template-columns: repeat(3, 70px); grid-template-rows: repeat(2, 70px); gap: 12px; margin: auto; }
+        .slot {
+            width: 70px; height: 70px; background: rgba(0, 0, 0, 0.4); border: 1.5px solid rgba(0, 210, 255, 0.2);
+            border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;
+        }
+        /* Đoạn mới của Duy đây */
+        .slot img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 10px;
+            filter: drop-shadow(0 0 5px rgba(0, 210, 255, 0.5));
+            display: block;
+        }
+
+        .friends-aside { flex: 1; background: var(--glass); border-radius: 20px; backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; min-width: 0; }
+        .aside-header { padding: 15px; text-align: center; color: var(--neon); font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .friends-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .friend-card { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); margin-bottom: 8px; padding: 10px; border-radius: 12px; }
+        .friend-img { width: 32px; height: 32px; border-radius: 8px; object-fit: cover; }
+        .btn-invite { background: none; border: 1px solid var(--neon); color: var(--neon); padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 10px; transition: 0.2s; }
+        .btn-invite:hover { background: var(--neon); color: #000; }
+        .btn-invite:focus-visible { outline: 2px solid white; outline-offset: 2px; }
+
+        .bottom-actions { padding: 15px; display: flex; gap: 10px; }
+        .btn-control { flex: 1; padding: 14px; border: none; border-radius: 12px; font-weight: bold; color: white; cursor: pointer; text-transform: uppercase; transition: 0.2s; }
+        .btn-control:hover { filter: brightness(1.1); }
+        .btn-control:active { transform: scale(0.97); }
+        .btn-exit { background: #ff4757; } .btn-start { background: var(--purple); }
+        .btn-control:focus-visible { outline: 2px solid white; outline-offset: 2px; }
+
+        @media (max-width: 768px) { .room-container { flex-direction: column; overflow-y: auto; } .slots-grid { margin: 20px auto; } }
+    </style>
+</head>
+<body>
+    <div class="room-container">
+        <div class="game-main">
+            <div class="bet-bar"><span>CƯỢC:</span><input type="number" value="1000" min="0" max="1000000" aria-label="Số xu cược"></div>
+            <div class="slots-grid">
+                <div class="slot" id="s0"><i class="fas fa-plus"></i></div>
+                <div class="slot" id="s1"><i class="fas fa-plus"></i></div>
+                <div class="slot" id="s2"><i class="fas fa-plus"></i></div>
+                <div class="slot" id="s3"><i class="fas fa-plus"></i></div>
+                <div class="slot" id="s4"><i class="fas fa-plus"></i></div>
+                <div class="slot" id="s5"><i class="fas fa-plus"></i></div>
+            </div>
+        </div>
+        <div class="friends-aside">
+            <div class="aside-header">BẠN BÈ ONLINE</div>
+            <div class="friends-list" id="friend-list"></div>
+        </div>
+    </div>
+    <div class="bottom-actions">
+        <button class="btn-control btn-exit" onclick="quitRoom()">Thoát</button>
+        <button class="btn-control btn-start">Bắt Đầu</button>
+    </div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyBbdRgcZmqt5-ywPyssZ1C2CDoj11slDQs",
+        authDomain: "sky-dodge-8f537.firebaseapp.com",
+        databaseURL: "https://sky-dodge-8f537-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "sky-dodge-8f537",
+        storageBucket: "sky-dodge-8f537.firebasestorage.app",
+        messagingSenderId: "169224412363",
+        appId: "1:169224412363:web:de0d018158d8b34e854f4e"
+    };
+
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database(), auth = firebase.auth();
+
+    // Biến toàn cục để dùng trong các hàm ngoài
+    let hostId, isHost, user;
+
+    // Escape HTML để chống XSS khi hiển thị tên người chơi
+    function escapeHtml(str) {
+        return String(str == null ? '' : str)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    auth.onAuthStateChanged(currUser => {
+        if (!currUser) return location.href = 'auth.html';
+        user = currUser;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        hostId = urlParams.get('id') || user.uid;
+        isHost = (hostId === user.uid);
+        const betInput = document.querySelector('.bet-bar input');
+        const startBtn = document.querySelector('.btn-start');
+
+        if (!urlParams.get('id')) {
+            window.history.replaceState({}, '', '?id=' + user.uid);
+        }
+
+        // --- 1. QUẢN LÝ ONLINE & GHI DANH ---
+        const myRoomRef = db.ref(`rooms/${hostId}/players/${user.uid}`);
+        const myData = {
+            name: user.displayName || "Người chơi",
+            avatarUrl: user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'U')}&background=random&color=fff`,
+            joinedAt: firebase.database.ServerValue.TIMESTAMP,
+            isReady: isHost ? true : false,
+            state: 'waiting',
+            survivalTime: 0
+        };
+        myRoomRef.update(myData);
+
+        // Khi host rời giữa trận: xóa người chơi của mình khỏi phòng để tránh phòng "ma"
+        myRoomRef.onDisconnect().update({
+            state: 'dead',
+            survivalTime: 0
+        }).then(() => {
+            if (isHost) myRoomRef.remove();
+        });
+
+        if (isHost) {
+            const roomRef = db.ref(`rooms/${hostId}`);
+            roomRef.update({ status: 'waiting' });
+
+            // Khi host rớt mạng: kết thúc phòng, xóa dữ liệu phòng để tránh phòng "ma"
+            roomRef.onDisconnect().update({
+                status: 'finished'
+            }).then(() => {
+                roomRef.remove();
+            });
+        }
+
+
+        // --- 2. HIỂN THỊ NGƯỜI CHƠI ---
+        db.ref(`rooms/${hostId}/players`).on('value', snap => {
+            const players = snap.val() || {};
+            for(let i=0; i<=5; i++) setPlayer(i, null);
+            const playerEntries = Object.entries(players).sort((a, b) => (a[1].joinedAt || 0) - (b[1].joinedAt || 0));
+            playerEntries.forEach(([pUid, pData], index) => {
+                if (index <= 5) {
+                    setPlayer(index, pData.avatarUrl);
+                    const slot = document.getElementById(`s${index}`);
+                    if (slot) slot.style.border = pData.isReady ? "3px solid #2ecc71" : "1.5px solid rgba(0, 210, 255, 0.2)";
+                }
+            });
+        });
+
+        // --- 3. QUẢN LÝ CƯỢC ---
+        if (!isHost) {
+            betInput.readOnly = true;
+            betInput.style.opacity = "0.7";
+            startBtn.innerText = "SẴN SÀNG";
+            startBtn.style.background = "#3498db";
+        }
+        betInput.onchange = () => isHost && db.ref(`rooms/${hostId}/bet`).set(parseInt(betInput.value) || 0);
+        db.ref(`rooms/${hostId}/bet`).on('value', s => { if(s.exists()) betInput.value = s.val(); });
+
+        // --- 4. LOGIC BẮT ĐẦU ---
+        startBtn.onclick = async () => {
+            const snap = await db.ref(`rooms/${hostId}/players`).once('value');
+            const players = snap.val() || {};
+            const playerEntries = Object.entries(players);
+
+            if (!isHost) {
+                const currentReady = players[user.uid] ? players[user.uid].isReady || false : false;
+                db.ref(`rooms/${hostId}/players/${user.uid}/isReady`).set(!currentReady);
+                startBtn.innerText = !currentReady ? "HỦY SẴN SÀNG" : "SẴN SÀNG";
+                startBtn.style.background = !currentReady ? "#e67e22" : "#3498db";
+            } else {
+                const bet = parseInt(betInput.value) || 0;
+                if (bet < 0) return alert("Số cược không hợp lệ!");
+
+                // Kiểm tra số dư của host trước khi trừ (chống cược âm)
+                const hostCoinsSnap = await db.ref(`users/${user.uid}/coins`).once('value');
+                const hostCoins = Number(hostCoinsSnap.val()) || 0;
+                if (bet > hostCoins) return alert(`Bạn không đủ xu! (Cần ${bet}, đang có ${hostCoins})`);
+
+                const allReady = playerEntries.every(([id, p]) => id === hostId || p.isReady === true);
+                if (playerEntries.length < 2) return alert("Cần ít nhất 2 người chơi!");
+                if (!allReady) return alert("Chờ mọi người sẵn sàng!");
+
+                const updates = {};
+                playerEntries.forEach(([id, p]) => {
+                    const playerBet = id === hostId ? bet : (p.bet || bet);
+                    updates[`users/${id}/coins`] = firebase.database.ServerValue.increment(-(playerBet || bet));
+                    updates[`rooms/${hostId}/players/${id}/state`] = 'alive';
+                    updates[`rooms/${hostId}/players/${id}/survivalTime`] = 0;
+                });
+                updates[`rooms/${hostId}/status`] = 'playing';
+                updates[`rooms/${hostId}/totalPrize`] = bet * playerEntries.length;
+                db.ref().update(updates);
+            }
+        };
+
+        // --- 5. CHUYỂN TRANG ---
+        db.ref(`rooms/${hostId}/status`).on('value', s => {
+            if (s.val() === 'playing') window.location.href = 'battle.html?id=' + hostId;
+        });
+
+        // --- 6. BẠN BÈ ---
+        const friendListeners = [];
+        db.ref('friends/' + user.uid).on('value', s => {
+            const list = document.getElementById('friend-list');
+            if(!list) return;
+            // Dừng listener cũ của bạn bè để tránh nhân đôi lắng nghe
+            friendListeners.forEach(l => db.ref('/status/' + l).off());
+            friendListeners.length = 0;
+
+            list.innerHTML = '';
+            const friendsData = s.val();
+            if (!friendsData) {
+                list.innerHTML = '<div style="text-align:center;font-size:12px;opacity:0.5;margin-top:20px;">Trống</div>';
+                return;
+            }
+            Object.entries(friendsData).forEach(([fUid, fInfo]) => {
+                friendListeners.push(fUid);
+                db.ref('/status/' + fUid).on('value', st => {
+                    updateFriendUI(fUid, fInfo, st.val() ? st.val().state === 'online' : false);
+                });
+            });
+        });
+
+        // --- 7. LẮNG NGHE LỜI MỜI ---
+        const inviteRef = db.ref('invites/' + user.uid);
+        inviteRef.on('value', snap => {
+            const inviteData = snap.val();
+            if (inviteData && inviteData.timestamp) {
+                const now = Date.now();
+                if (now - inviteData.timestamp < 60000) {
+                    if (confirm(`Lời mời từ ${escapeHtml(inviteData.fromName || 'Bạn')}. Tham gia phòng mới?`)) {
+                        inviteRef.remove();
+                        // Rời phòng cũ trước khi sang phòng mới
+                        if (hostId && user) db.ref(`rooms/${hostId}/players/${user.uid}`).remove();
+                        window.location.href = 'room.html?id=' + inviteData.roomId;
+                    } else {
+                        inviteRef.remove();
+                    }
+                }
+            }
+        });
+    }); // Đóng auth.onAuthStateChanged chuẩn
+
+    // --- CÁC HÀM HỖ TRỢ ---
+    function setPlayer(index, url) {
+        const s = document.getElementById(`s${index}`);
+        if (!s) return;
+        if (url) {
+            s.innerHTML = `<img src="${escapeHtml(url)}" referrerpolicy="no-referrer" alt="Người chơi" onerror="this.style.display='none'">`;
+            s.classList.add('occupied');
+        } else {
+            s.innerHTML = `<i class="fas fa-plus"></i>`;
+            s.classList.remove('occupied');
+        }
+    }
+
+    function updateFriendUI(uid, data, isOnline) {
+        const list = document.getElementById('friend-list');
+        if(!list) return;
+        let row = document.getElementById('f-' + uid);
+        const safeName = escapeHtml(data ? data.name : 'Bạn');
+        const safeAvatar = escapeHtml(data ? data.avatarUrl || '' : '');
+        const content = `
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div style="position:relative">
+                    <img src="${safeAvatar}" class="friend-img" referrerpolicy="no-referrer" alt="${safeName}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22><rect width=%2232%22 height=%2232%22 fill=%22%235d5dff%22/><text x=%2250%25%22 y=%2258%25%22 text-anchor=%22middle%22 font-size=%2216%22 fill=%22white%22>${safeName.charAt(0) || 'U'}</text></svg>'">
+                    <div style="width:8px;height:8px;border-radius:50%;background:${isOnline?'#2ecc71':'#666'};position:absolute;bottom:0;right:0;"></div>
+                </div>
+                <span style="font-size:12px;font-weight:bold;">${safeName}</span>
+            </div>
+            ${isOnline ? `<button class="btn-invite" onclick="invite('${uid}')">MỜI</button>` : '<span style="font-size:10px;opacity:0.3">OFF</span>'}`;
+
+        if (row) row.innerHTML = content;
+        else {
+            const div = document.createElement('div');
+            div.id = 'f-' + uid; div.className = 'friend-card';
+            div.innerHTML = content; list.appendChild(div);
+        }
+    }
+
+    function invite(uid) {
+        const name = auth.currentUser ? (auth.currentUser.displayName || "Người chơi") : "Người chơi";
+        db.ref('invites/' + uid).set({
+            fromName: name,
+            roomId: hostId,
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        }).then(() => alert("Đã gửi lời mời!")).catch(() => alert("Không gửi được lời mời!"));
+    }
+
+    function quitRoom() {
+        if (hostId && user) db.ref(`rooms/${hostId}/players/${user.uid}`).remove();
+        location.href = 'friends.html';
+    }
+</script>
+</body>
+</html>
